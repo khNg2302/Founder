@@ -85,4 +85,39 @@ export class RefreshTokenService {
       },
     });
   }
+
+  async findActiveByAccountId(accountId: string) {
+    return this.prisma.refreshToken.findMany({
+      where: {
+        accountId,
+        revokedAt: null,
+        expiresAt: {
+          gt: new Date(),
+        },
+      },
+      select: {
+        id: true,
+        createdAt: true,
+        expiresAt: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  }
+
+  async revokeByIdForAccount(id: string, accountId: string) {
+    const result = await this.prisma.refreshToken.updateMany({
+      where: {
+        id,
+        accountId,
+        revokedAt: null,
+      },
+      data: {
+        revokedAt: new Date(),
+      },
+    });
+
+    return result.count > 0;
+  }
 }

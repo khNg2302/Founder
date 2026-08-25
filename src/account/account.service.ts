@@ -1,10 +1,19 @@
-import { Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
+import * as argon2 from 'argon2';
 import { PrismaService } from 'prisma/prisma.service';
 import { PrismaTransaction } from 'prisma/prisma.types';
+import { RefreshTokenService } from 'src/auth/refresh-token.service';
 
 @Injectable()
 export class AccountService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly refreshTokenService: RefreshTokenService,
+  ) {}
 
   async findLocalByEmail(email: string) {
     return this.prisma.account.findFirst({
@@ -54,5 +63,128 @@ export class AccountService {
         deletedAt: new Date(),
       },
     });
+  }
+
+  async findByIdForUser(accountId: string, userId: string) {
+    return this.prisma.account.findFirst({
+      where: {
+        id: accountId,
+        userId,
+      },
+      select: {
+        id: true,
+        provider: true,
+        email: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+  }
+
+  async changePassword(
+    accountId: string,
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+  ) {
+    const account = await this.prisma.account.findFirst({
+      where: {
+        id: accountId,
+        userId,
+        provider: 'LOCAL',
+        status: 'ACTIVE',
+        deletedAt: null,
+      },
+    });
+
+    if (!account || !account.passwordHash) {
+      throw new UnauthorizedException('Invalid account');
+    }
+
+    const valid = await argon2.verify(account.passwordHash, currentPassword);
+
+    if (!valid) {
+      throw new UnauthorizedException('Current password is incorrect');
+    }
+
+    const passwordHash = await argon2.hash(newPassword);
+
+    await this.prisma.account.update({
+      where: {
+        id: account.id,
+      },
+      data: {
+        passwordHash,
+      },
+    });
+
+    await this.refreshTokenService.revokeAllByAccountId(account.id);
+
+    await this.prisma.account.update({
+      where: {
+        id: account.id,
+      },
+      data: {
+        passwordHash,
+      },
+    });
+  }
+
+  async changeEmail(
+    accountId: string,
+    userId: string,
+    newEmail: string,
+    currentPassword: string,
+  ) {
+    const account = await this.prisma.account.findFirst({
+      where: {
+        id: accountId,
+        userId,
+        provider: 'LOCAL',
+        status: 'ACTIVE',
+        deletedAt: null,
+      },
+    });
+
+    if (!account || !account.passwordHash) {
+      throw new UnauthorizedException('Invalid account');
+    }
+
+    const valid = await argon2.verify(account.passwordHash, currentPassword);
+
+    if (!valid) {
+      throw new UnauthorizedException('Current password is incorrect');
+    }
+
+    const email = newEmail.trim().toLowerCase();
+
+    const existingAccount = await this.prisma.account.findFirst({
+      where: {
+        email,
+        id: {
+          not: account.id,
+        },
+      },
+    });
+
+    if (existingAccount) {
+      throw new ConflictException('Email already exists');
+    }
+
+    await this.prisma.account.update({
+      where: {
+        id: account.id,
+      },
+      data: {
+        email,
+      },
+    });
+
+    await this.refreshTokenService.revokeAllByAccountId(account.id);
+
+    return {
+      message: 'Email changed successfully',
+    };
   }
 }

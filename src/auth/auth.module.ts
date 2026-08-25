@@ -11,6 +11,7 @@ import { TokenService } from './token.service';
 import { RefreshTokenService } from './refresh-token.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { SessionController } from './session.controller';
 
 @Module({
   imports: [
@@ -31,7 +32,7 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
     }),
   ],
 
-  controllers: [AuthController],
+  controllers: [AuthController, SessionController],
 
   providers: [
     AuthService,

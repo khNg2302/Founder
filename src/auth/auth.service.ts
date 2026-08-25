@@ -1,10 +1,15 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import * as argon2 from 'argon2';
 
 import { AccountService } from '../account/account.service';
 import { UserService } from '../user/user.service';
 import { RegisterDto } from './dto/register.dto';
 import { PrismaService } from 'prisma/prisma.service';
+import { LoginDto } from './dto/login.dto';
 
 @Injectable()
 export class AuthService {
@@ -47,5 +52,31 @@ export class AuthService {
         accountId: account.id,
       };
     });
+  }
+
+  async login(dto: LoginDto) {
+    const account = await this.accountService.findLocalByEmail(dto.email);
+
+    if (!account || !account.passwordHash) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    if (account.status !== 'ACTIVE') {
+      throw new UnauthorizedException('Account is disabled');
+    }
+
+    const passwordValid = await argon2.verify(
+      account.passwordHash,
+      dto.password,
+    );
+
+    if (!passwordValid) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    return {
+      userId: account.userId,
+      accountId: account.id,
+    };
   }
 }

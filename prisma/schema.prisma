@@ -57,9 +57,9 @@ model Account {
 }
 
 model RefreshToken {
-  id        String    @id @default(cuid())
+  id        String @id @default(cuid())
   userId    String
-  tokenHash String    @unique
+  tokenHash String @unique
 
   expiresAt DateTime
   revokedAt DateTime?

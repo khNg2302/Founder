@@ -43,4 +43,16 @@ export class AccountService {
       },
     });
   }
+
+  async scheduleDeletion(id: string) {
+    return this.prisma.account.update({
+      where: {
+        id,
+      },
+      data: {
+        status: 'DISABLED',
+        deletedAt: new Date(),
+      },
+    });
+  }
 }

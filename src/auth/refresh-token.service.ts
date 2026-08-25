@@ -73,4 +73,16 @@ export class RefreshTokenService {
 
     await this.revoke(storedToken.id);
   }
+
+  async revokeAllByAccountId(accountId: string) {
+    return this.prisma.refreshToken.updateMany({
+      where: {
+        accountId,
+        revokedAt: null,
+      },
+      data: {
+        revokedAt: new Date(),
+      },
+    });
+  }
 }

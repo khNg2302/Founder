@@ -1,8 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client"
   output   = "../generated/prisma"
@@ -10,4 +5,68 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+enum UserStatus {
+  ACTIVE
+  PENDING_DELETION
+}
+
+enum AccountProvider {
+  LOCAL
+  GOOGLE
+  GITHUB
+}
+
+enum AccountStatus {
+  ACTIVE
+  DISABLED
+}
+
+model User {
+  id                  String     @id @default(cuid())
+  name                String?
+  avatarUrl           String?
+  status              UserStatus @default(ACTIVE)
+  deletionRequestedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  accounts      Account[]
+  refreshTokens RefreshToken[]
+}
+
+model Account {
+  id                String          @id @default(cuid())
+  userId            String
+  provider          AccountProvider
+  providerAccountId String?
+  email             String?
+  passwordHash      String?
+  status            AccountStatus   @default(ACTIVE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@unique([provider, email])
+  @@index([userId])
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+
+  expiresAt DateTime
+  revokedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

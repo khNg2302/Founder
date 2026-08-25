@@ -59,6 +59,7 @@ model Account {
 model RefreshToken {
   id        String @id @default(cuid())
   userId    String
+  accountId String
   tokenHash String @unique
 
   expiresAt DateTime
@@ -69,4 +70,5 @@ model RefreshToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([accountId])
 }

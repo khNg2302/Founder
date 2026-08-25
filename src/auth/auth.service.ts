@@ -5,11 +5,16 @@ import {
 } from '@nestjs/common';
 import * as argon2 from 'argon2';
 
+import { PrismaService } from 'prisma/prisma.service';
 import { AccountService } from '../account/account.service';
 import { UserService } from '../user/user.service';
 import { RegisterDto } from './dto/register.dto';
-import { PrismaService } from 'prisma/prisma.service';
+import { TokenService } from './token.service';
+import { RefreshTokenService } from './refresh-token.service';
+
 import { LoginDto } from './dto/login.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { LogoutDto } from './dto/logout.dto';
 
 @Injectable()
 export class AuthService {
@@ -17,6 +22,8 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly userService: UserService,
     private readonly accountService: AccountService,
+    private readonly tokenService: TokenService,
+    private readonly refreshTokenService: RefreshTokenService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -74,9 +81,54 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    return {
-      userId: account.userId,
+    const accessToken = await this.tokenService.createAccessToken({
+      sub: account.userId,
       accountId: account.id,
+    });
+
+    const refreshToken = await this.refreshTokenService.create(
+      account.userId,
+      account.id,
+    );
+
+    return {
+      accessToken,
+      refreshToken: refreshToken.token,
+    };
+  }
+
+  async refresh(dto: RefreshTokenDto) {
+    const storedToken = await this.refreshTokenService.findValid(
+      dto.refreshToken,
+    );
+
+    if (!storedToken) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    await this.refreshTokenService.revoke(storedToken.id);
+
+    const accessToken = await this.tokenService.createAccessToken({
+      sub: storedToken.userId,
+      accountId: storedToken.accountId,
+    });
+
+    const refreshToken = await this.refreshTokenService.create(
+      storedToken.userId,
+      storedToken.accountId,
+    );
+
+    return {
+      accessToken,
+      refreshToken: refreshToken.token,
+    };
+  }
+
+  async logout(dto: LogoutDto) {
+    await this.refreshTokenService.revokeByToken(dto.refreshToken);
+
+    return {
+      message: 'Logged out successfully',
     };
   }
 }

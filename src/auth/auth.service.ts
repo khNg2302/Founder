@@ -15,7 +15,8 @@ import { RefreshTokenService } from './refresh-token.service';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { LogoutDto } from './dto/logout.dto';
-import { GoogleAccount } from './types/google-account.type';
+import { OAuthAccount } from './types/oauth-account.type';
+import { Prisma } from 'generated/prisma/client';
 
 @Injectable()
 export class AuthService {
@@ -144,58 +145,116 @@ export class AuthService {
     };
   }
 
-  async loginWithGoogle(googleAccount: GoogleAccount) {
-    if (!googleAccount.emailVerified) {
-      throw new UnauthorizedException('Google email is not verified');
+  async loginWithOAuth(oauthAccount: OAuthAccount) {
+    if (!oauthAccount.emailVerified) {
+      throw new UnauthorizedException(
+        `${oauthAccount.provider} email is not verified`,
+      );
     }
 
+    // 1. Tìm đúng OAuth Account
     const existingAccount = await this.accountService.findByProviderAccountId(
-      'GOOGLE',
-      googleAccount.providerAccountId,
+      oauthAccount.provider,
+      oauthAccount.providerAccountId,
     );
 
     if (existingAccount) {
       return this.issueTokens(existingAccount);
     }
 
-    const existingEmailAccount = await this.accountService.findByEmail(
-      googleAccount.email,
+    // 2. Tìm tất cả Account có cùng email
+    const existingAccounts = await this.accountService.findAllByEmail(
+      oauthAccount.email,
     );
 
-    if (existingEmailAccount) {
-      if (existingEmailAccount.provider !== 'LOCAL') {
-        throw new ConflictException(
-          'Email is already associated with another provider',
-        );
+    if (existingAccounts.length > 0) {
+      const sameProvider = existingAccounts.find(
+        (account) => account.provider === oauthAccount.provider,
+      );
+
+      if (sameProvider) {
+        return this.issueTokens(sameProvider);
       }
 
-      const account = await this.accountService.createGoogle({
-        userId: existingEmailAccount.userId,
-        providerAccountId: googleAccount.providerAccountId,
-        email: googleAccount.email,
+      const localAccount = existingAccounts.find(
+        (account) => account.provider === 'LOCAL',
+      );
+
+      if (localAccount) {
+        try {
+          const account = await this.accountService.createOAuth({
+            userId: localAccount.userId,
+            provider: oauthAccount.provider,
+            providerAccountId: oauthAccount.providerAccountId,
+            email: oauthAccount.email.toLowerCase(),
+          });
+
+          return this.issueTokens(account);
+        } catch (error) {
+          return this.handleOAuthConflict(
+            error,
+            oauthAccount.provider,
+            oauthAccount.providerAccountId,
+          );
+        }
+      }
+
+      // Email đã thuộc OAuth provider khác
+      throw new ConflictException(
+        'Email is already associated with another provider',
+      );
+    }
+
+    // 3. Email hoàn toàn mới
+    try {
+      const account = await this.prisma.$transaction(async (tx) => {
+        const user = await this.userService.create(
+          {
+            name: oauthAccount.name,
+          },
+          tx,
+        );
+
+        return this.accountService.createOAuth(
+          {
+            userId: user.id,
+            provider: oauthAccount.provider,
+            providerAccountId: oauthAccount.providerAccountId,
+            email: oauthAccount.email.toLowerCase(),
+          },
+          tx,
+        );
       });
 
       return this.issueTokens(account);
+    } catch (error) {
+      return this.handleOAuthConflict(
+        error,
+        oauthAccount.provider,
+        oauthAccount.providerAccountId,
+      );
+    }
+  }
+
+  private async handleOAuthConflict(
+    error: unknown,
+    provider: OAuthAccount['provider'],
+    providerAccountId: string,
+  ) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2002'
+    ) {
+      const existingAccount = await this.accountService.findByProviderAccountId(
+        provider,
+        providerAccountId,
+      );
+
+      if (existingAccount) {
+        return this.issueTokens(existingAccount);
+      }
     }
 
-    const account = await this.prisma.$transaction(async (tx) => {
-      const user = await this.userService.create(
-        {
-          name: googleAccount.name,
-        },
-        tx,
-      );
-
-      return this.accountService.createGoogle(
-        {
-          userId: user.id,
-          providerAccountId: googleAccount.providerAccountId,
-          email: googleAccount.email,
-        },
-        tx,
-      );
-    });
-
-    return this.issueTokens(account);
+    throw error;
   }
 }

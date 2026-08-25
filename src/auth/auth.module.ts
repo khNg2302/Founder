@@ -12,6 +12,7 @@ import { RefreshTokenService } from './refresh-token.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { SessionController } from './session.controller';
 import { GoogleStrategy } from './strategies/google.strategy';
+import { GitHubStrategy } from './strategies/github.strategy';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { GoogleStrategy } from './strategies/google.strategy';
     RefreshTokenService,
     JwtStrategy,
     GoogleStrategy,
+    GitHubStrategy,
   ],
 })
 export class AuthModule {}

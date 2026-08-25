@@ -14,7 +14,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     });
   }
 
-  validate(accessToken: string, refreshToken: string, profile: Profile) {
+  async validate(accessToken: string, refreshToken: string, profile: Profile) {
     const email = profile.emails?.[0];
 
     if (!email?.value) {
@@ -22,7 +22,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     }
 
     return {
-      provider: 'GOOGLE' as const,
+      provider: 'GOOGLE',
       providerAccountId: profile.id,
       email: email.value.toLowerCase(),
       emailVerified: email.verified === true,

@@ -188,7 +188,10 @@ export class AccountService {
     };
   }
 
-  async findByProviderAccountId(provider: 'GOOGLE', providerAccountId: string) {
+  async findByProviderAccountId(
+    provider: 'GOOGLE' | 'GITHUB',
+    providerAccountId: string,
+  ) {
     return this.prisma.account.findFirst({
       where: {
         provider,
@@ -199,8 +202,8 @@ export class AccountService {
     });
   }
 
-  async findByEmail(email: string) {
-    return this.prisma.account.findFirst({
+  async findAllByEmail(email: string) {
+    return this.prisma.account.findMany({
       where: {
         email,
         status: 'ACTIVE',
@@ -209,9 +212,10 @@ export class AccountService {
     });
   }
 
-  async createGoogle(
+  async createOAuth(
     data: {
       userId: string;
+      provider: 'GOOGLE' | 'GITHUB';
       providerAccountId: string;
       email: string;
     },
@@ -220,7 +224,7 @@ export class AccountService {
     return tx.account.create({
       data: {
         userId: data.userId,
-        provider: 'GOOGLE',
+        provider: data.provider,
         providerAccountId: data.providerAccountId,
         email: data.email,
         passwordHash: null,

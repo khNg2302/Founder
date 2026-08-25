@@ -55,6 +55,7 @@ model Account {
   @@unique([provider, providerAccountId])
   @@unique([provider, email])
   @@index([userId])
+  @@index([email])
 }
 
 model RefreshToken {

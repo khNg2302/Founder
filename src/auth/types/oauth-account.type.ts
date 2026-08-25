@@ -1,5 +1,5 @@
-export type GoogleAccount = {
-  provider: 'GOOGLE';
+export type OAuthAccount = {
+  provider: 'GOOGLE' | 'GITHUB';
   providerAccountId: string;
   email: string;
   emailVerified: boolean;

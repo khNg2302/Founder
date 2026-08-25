@@ -10,8 +10,8 @@ import { AuthService } from './auth.service';
 import { TokenService } from './token.service';
 import { RefreshTokenService } from './refresh-token.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
-import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { SessionController } from './session.controller';
+import { GoogleStrategy } from './strategies/google.strategy';
 
 @Module({
   imports: [
@@ -39,7 +39,7 @@ import { SessionController } from './session.controller';
     TokenService,
     RefreshTokenService,
     JwtStrategy,
-    JwtAuthGuard,
+    GoogleStrategy,
   ],
 })
 export class AuthModule {}

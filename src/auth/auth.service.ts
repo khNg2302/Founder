@@ -15,6 +15,7 @@ import { RefreshTokenService } from './refresh-token.service';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { LogoutDto } from './dto/logout.dto';
+import { GoogleAccount } from './types/google-account.type';
 
 @Injectable()
 export class AuthService {
@@ -61,6 +62,25 @@ export class AuthService {
     });
   }
 
+  private async issueTokens(account: { id: string; userId: string }) {
+    const accessToken = await this.tokenService.createAccessToken({
+      sub: account.userId,
+      accountId: account.id,
+    });
+
+    const refreshToken = await this.refreshTokenService.create(
+      account.userId,
+      account.id,
+    );
+
+    return {
+      accessToken,
+      refreshToken: refreshToken.token,
+      refreshTokenId: refreshToken.refreshTokenId,
+      expiresAt: refreshToken.expiresAt,
+    };
+  }
+
   async login(dto: LoginDto) {
     const account = await this.accountService.findLocalByEmail(dto.email);
 
@@ -81,19 +101,11 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const accessToken = await this.tokenService.createAccessToken({
-      sub: account.userId,
-      accountId: account.id,
-    });
-
-    const refreshToken = await this.refreshTokenService.create(
-      account.userId,
-      account.id,
-    );
+    const { accessToken, refreshToken } = await this.issueTokens(account);
 
     return {
       accessToken,
-      refreshToken: refreshToken.token,
+      refreshToken,
     };
   }
 
@@ -130,5 +142,60 @@ export class AuthService {
     return {
       message: 'Logged out successfully',
     };
+  }
+
+  async loginWithGoogle(googleAccount: GoogleAccount) {
+    if (!googleAccount.emailVerified) {
+      throw new UnauthorizedException('Google email is not verified');
+    }
+
+    const existingAccount = await this.accountService.findByProviderAccountId(
+      'GOOGLE',
+      googleAccount.providerAccountId,
+    );
+
+    if (existingAccount) {
+      return this.issueTokens(existingAccount);
+    }
+
+    const existingEmailAccount = await this.accountService.findByEmail(
+      googleAccount.email,
+    );
+
+    if (existingEmailAccount) {
+      if (existingEmailAccount.provider !== 'LOCAL') {
+        throw new ConflictException(
+          'Email is already associated with another provider',
+        );
+      }
+
+      const account = await this.accountService.createGoogle({
+        userId: existingEmailAccount.userId,
+        providerAccountId: googleAccount.providerAccountId,
+        email: googleAccount.email,
+      });
+
+      return this.issueTokens(account);
+    }
+
+    const account = await this.prisma.$transaction(async (tx) => {
+      const user = await this.userService.create(
+        {
+          name: googleAccount.name,
+        },
+        tx,
+      );
+
+      return this.accountService.createGoogle(
+        {
+          userId: user.id,
+          providerAccountId: googleAccount.providerAccountId,
+          email: googleAccount.email,
+        },
+        tx,
+      );
+    });
+
+    return this.issueTokens(account);
   }
 }

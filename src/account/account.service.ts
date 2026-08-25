@@ -187,4 +187,44 @@ export class AccountService {
       message: 'Email changed successfully',
     };
   }
+
+  async findByProviderAccountId(provider: 'GOOGLE', providerAccountId: string) {
+    return this.prisma.account.findFirst({
+      where: {
+        provider,
+        providerAccountId,
+        status: 'ACTIVE',
+        deletedAt: null,
+      },
+    });
+  }
+
+  async findByEmail(email: string) {
+    return this.prisma.account.findFirst({
+      where: {
+        email,
+        status: 'ACTIVE',
+        deletedAt: null,
+      },
+    });
+  }
+
+  async createGoogle(
+    data: {
+      userId: string;
+      providerAccountId: string;
+      email: string;
+    },
+    tx: PrismaTransaction = this.prisma,
+  ) {
+    return tx.account.create({
+      data: {
+        userId: data.userId,
+        provider: 'GOOGLE',
+        providerAccountId: data.providerAccountId,
+        email: data.email,
+        passwordHash: null,
+      },
+    });
+  }
 }

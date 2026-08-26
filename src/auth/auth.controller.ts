@@ -24,6 +24,8 @@ import {
 } from './decorators/current-user.decorator';
 import { Roles } from 'src/authorization/decorators/roles.decorator';
 import { RolesGuard } from 'src/authorization/guards/roles.guard';
+import { Permissions } from 'src/authorization/decorators/permissions.decorator';
+import { PermissionsGuard } from 'src/authorization/guards/permissions.guard';
 
 @Controller('auth')
 export class AuthController {
@@ -83,8 +85,9 @@ export class AuthController {
     return this.authService.reactivateAccount(dto.token);
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN')
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+  @Roles('USER')
+  @Permissions('profile:read', 'user:update')
   @Get('users')
   findAllUsers() {
     return { message: 'Access granted' };

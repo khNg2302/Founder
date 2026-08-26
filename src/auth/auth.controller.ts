@@ -22,6 +22,8 @@ import {
   AuthenticatedUser,
   CurrentUser,
 } from './decorators/current-user.decorator';
+import { Roles } from 'src/authorization/decorators/roles.decorator';
+import { RolesGuard } from 'src/authorization/guards/roles.guard';
 
 @Controller('auth')
 export class AuthController {
@@ -79,5 +81,12 @@ export class AuthController {
   @Post('account/reactivate')
   async reactivateAccount(@Body() dto: ReactivateAccountDto) {
     return this.authService.reactivateAccount(dto.token);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  @Get('users')
+  findAllUsers() {
+    return { message: 'Access granted' };
   }
 }

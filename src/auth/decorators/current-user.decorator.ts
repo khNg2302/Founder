@@ -3,6 +3,7 @@ import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 export interface AuthenticatedUser {
   userId: string;
   accountId: string;
+  sessionId: string;
 }
 
 export const CurrentUser = createParamDecorator(

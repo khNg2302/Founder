@@ -18,7 +18,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(payload: { sub: string; accountId: string }) {
+  async validate(payload: {
+    sub: string;
+    accountId: string;
+    sessionId: string;
+  }) {
     const account = await this.prisma.account.findFirst({
       where: {
         id: payload.accountId,
@@ -39,6 +43,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     return {
       userId: account.userId,
       accountId: account.id,
+      sessionId: payload.sessionId,
     };
   }
 }

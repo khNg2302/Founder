@@ -1,17 +1,20 @@
-import { Injectable } from '@nestjs/common';
-import * as argon2 from 'argon2';
-import { randomBytes } from 'crypto';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 
 import { PrismaService } from 'prisma/prisma.service';
+import { PrismaTransaction } from 'prisma/prisma.types';
+import { OpaqueTokenService } from 'src/common/security/token/opaque-token.service';
 
 @Injectable()
 export class RefreshTokenService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly opaqueTokenService: OpaqueTokenService,
+  ) {}
 
   async create(userId: string, accountId: string) {
-    const token = randomBytes(64).toString('hex');
+    const secret = this.opaqueTokenService.generateSecret();
 
-    const tokenHash = await argon2.hash(token);
+    const tokenHash = await this.opaqueTokenService.hash(secret);
 
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 30);
@@ -25,6 +28,8 @@ export class RefreshTokenService {
       },
     });
 
+    const token = `${refreshToken.id}.${secret}`;
+
     return {
       token,
       refreshTokenId: refreshToken.id,
@@ -33,8 +38,15 @@ export class RefreshTokenService {
   }
 
   async findValid(token: string) {
-    const tokens = await this.prisma.refreshToken.findMany({
+    const [tokenId, secret] = token.split('.');
+
+    if (!tokenId || !secret) {
+      return null;
+    }
+
+    const storedToken = await this.prisma.refreshToken.findFirst({
       where: {
+        id: tokenId,
         revokedAt: null,
         expiresAt: {
           gt: new Date(),
@@ -42,15 +54,26 @@ export class RefreshTokenService {
       },
     });
 
-    for (const storedToken of tokens) {
-      const valid = await argon2.verify(storedToken.tokenHash, token);
-
-      if (valid) {
-        return storedToken;
-      }
+    if (!storedToken) {
+      return null;
     }
 
-    return null;
+    const parsed = this.opaqueTokenService.parse(token);
+
+    if (!parsed) {
+      return null;
+    }
+
+    const valid = await this.opaqueTokenService.verify(
+      storedToken.tokenHash,
+      parsed.secret,
+    );
+
+    if (!valid) {
+      return null;
+    }
+
+    return storedToken;
   }
 
   async revoke(id: string) {
@@ -68,7 +91,7 @@ export class RefreshTokenService {
     const storedToken = await this.findValid(token);
 
     if (!storedToken) {
-      return;
+      throw new UnauthorizedException('Invalid or revoked refresh token');
     }
 
     await this.revoke(storedToken.id);
@@ -119,5 +142,17 @@ export class RefreshTokenService {
     });
 
     return result.count > 0;
+  }
+
+  async revokeAllByUserId(userId: string, tx: PrismaTransaction = this.prisma) {
+    return tx.refreshToken.updateMany({
+      where: {
+        userId,
+        revokedAt: null,
+      },
+      data: {
+        revokedAt: new Date(),
+      },
+    });
   }
 }

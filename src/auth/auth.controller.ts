@@ -1,13 +1,27 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { Request } from 'express';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
-import { LogoutDto } from './dto/logout.dto';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { OAuthAccount } from './types/oauth-account.type';
 import { GitHubAuthGuard } from './guards/github-auth.guard';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { AuthenticatedRequest } from './types/authenticated-request.type';
+import { ReactivateAccountDto } from './dto/reactive-account.dto';
+import {
+  AuthenticatedUser,
+  CurrentUser,
+} from './decorators/current-user.decorator';
 
 @Controller('auth')
 export class AuthController {
@@ -29,8 +43,9 @@ export class AuthController {
   }
 
   @Post('logout')
-  logout(@Body() dto: LogoutDto) {
-    return this.authService.logout(dto);
+  @UseGuards(JwtAuthGuard)
+  logout(@CurrentUser() user: AuthenticatedUser) {
+    return this.authService.logout(user.sessionId);
   }
 
   @Get('google')
@@ -53,5 +68,16 @@ export class AuthController {
   @UseGuards(GitHubAuthGuard)
   async githubCallback(@Req() req: Request) {
     return this.authService.loginWithOAuth(req.user as OAuthAccount);
+  }
+
+  @Delete('account')
+  @UseGuards(JwtAuthGuard)
+  async deleteAccount(@Req() req: AuthenticatedRequest) {
+    return this.authService.deleteAccount(req.user.userId);
+  }
+
+  @Post('account/reactivate')
+  async reactivateAccount(@Body() dto: ReactivateAccountDto) {
+    return this.authService.reactivateAccount(dto.token);
   }
 }

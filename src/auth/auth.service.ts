@@ -1,6 +1,7 @@
 import {
   ConflictException,
   Injectable,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import * as argon2 from 'argon2';
@@ -14,9 +15,9 @@ import { RefreshTokenService } from './refresh-token.service';
 
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
-import { LogoutDto } from './dto/logout.dto';
 import { OAuthAccount } from './types/oauth-account.type';
 import { Prisma } from 'generated/prisma/client';
+import { ReactivationTokenService } from './reactivation-token.service';
 
 @Injectable()
 export class AuthService {
@@ -26,6 +27,7 @@ export class AuthService {
     private readonly accountService: AccountService,
     private readonly tokenService: TokenService,
     private readonly refreshTokenService: RefreshTokenService,
+    private readonly reactivationTokenService: ReactivationTokenService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -63,21 +65,23 @@ export class AuthService {
     });
   }
 
-  private async issueTokens(account: { id: string; userId: string }) {
-    const accessToken = await this.tokenService.createAccessToken({
-      sub: account.userId,
-      accountId: account.id,
-    });
-
+  async issueTokens(account: { userId: string; id: string }) {
     const refreshToken = await this.refreshTokenService.create(
       account.userId,
       account.id,
     );
 
+    const payload = {
+      sub: account.userId,
+      accountId: account.id,
+      sessionId: refreshToken.refreshTokenId,
+    };
+
+    const accessToken = await this.tokenService.createAccessToken(payload);
+
     return {
       accessToken,
       refreshToken: refreshToken.token,
-      refreshTokenId: refreshToken.refreshTokenId,
       expiresAt: refreshToken.expiresAt,
     };
   }
@@ -124,6 +128,7 @@ export class AuthService {
     const accessToken = await this.tokenService.createAccessToken({
       sub: storedToken.userId,
       accountId: storedToken.accountId,
+      sessionId: storedToken.id,
     });
 
     const refreshToken = await this.refreshTokenService.create(
@@ -137,8 +142,8 @@ export class AuthService {
     };
   }
 
-  async logout(dto: LogoutDto) {
-    await this.refreshTokenService.revokeByToken(dto.refreshToken);
+  async logout(sessionId: string) {
+    await this.refreshTokenService.revoke(sessionId);
 
     return {
       message: 'Logged out successfully',
@@ -168,41 +173,56 @@ export class AuthService {
     );
 
     if (existingAccounts.length > 0) {
+      // Có Account cùng provider nhưng providerAccountId khác
+      // → email đã tồn tại trên cùng provider
       const sameProvider = existingAccounts.find(
         (account) => account.provider === oauthAccount.provider,
       );
 
       if (sameProvider) {
-        return this.issueTokens(sameProvider);
+        throw new ConflictException(
+          'Email is already associated with this provider',
+        );
       }
 
-      const localAccount = existingAccounts.find(
-        (account) => account.provider === 'LOCAL',
+      // Tất cả Account cùng email phải thuộc cùng một User
+      const userIds = new Set(
+        existingAccounts.map((account) => account.userId),
       );
 
-      if (localAccount) {
-        try {
-          const account = await this.accountService.createOAuth({
-            userId: localAccount.userId,
-            provider: oauthAccount.provider,
-            providerAccountId: oauthAccount.providerAccountId,
-            email: oauthAccount.email.toLowerCase(),
-          });
+      if (userIds.size > 1) {
+        throw new ConflictException('Email is associated with multiple users');
+      }
 
-          return this.issueTokens(account);
-        } catch (error) {
-          return this.handleOAuthConflict(
-            error,
+      // Email đã thuộc User này
+      const userId = existingAccounts[0].userId;
+
+      try {
+        const account = await this.accountService.createOAuth({
+          userId,
+          provider: oauthAccount.provider,
+          providerAccountId: oauthAccount.providerAccountId,
+          email: oauthAccount.email,
+        });
+
+        return this.issueTokens(account);
+      } catch (error) {
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === 'P2002'
+        ) {
+          const account = await this.accountService.findByProviderAccountId(
             oauthAccount.provider,
             oauthAccount.providerAccountId,
           );
-        }
-      }
 
-      // Email đã thuộc OAuth provider khác
-      throw new ConflictException(
-        'Email is already associated with another provider',
-      );
+          if (account) {
+            return this.issueTokens(account);
+          }
+        }
+
+        throw error;
+      }
     }
 
     // 3. Email hoàn toàn mới
@@ -220,7 +240,7 @@ export class AuthService {
             userId: user.id,
             provider: oauthAccount.provider,
             providerAccountId: oauthAccount.providerAccountId,
-            email: oauthAccount.email.toLowerCase(),
+            email: oauthAccount.email,
           },
           tx,
         );
@@ -228,11 +248,21 @@ export class AuthService {
 
       return this.issueTokens(account);
     } catch (error) {
-      return this.handleOAuthConflict(
-        error,
-        oauthAccount.provider,
-        oauthAccount.providerAccountId,
-      );
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        const account = await this.accountService.findByProviderAccountId(
+          oauthAccount.provider,
+          oauthAccount.providerAccountId,
+        );
+
+        if (account) {
+          return this.issueTokens(account);
+        }
+      }
+
+      throw error;
     }
   }
 
@@ -256,5 +286,67 @@ export class AuthService {
     }
 
     throw error;
+  }
+
+  async deleteAccount(userId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      await this.accountService.disableAllByUserId(userId, tx);
+
+      await this.refreshTokenService.revokeAllByUserId(userId, tx);
+
+      await this.userService.markPendingDeletion(userId, tx);
+
+      return this.reactivationTokenService.create(userId, tx);
+    });
+  }
+
+  async reactivateAccount(token: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const reactivationToken = await this.reactivationTokenService.findValid(
+        token,
+        tx,
+      );
+
+      if (!reactivationToken) {
+        throw new UnauthorizedException(
+          'Invalid or expired reactivation token',
+        );
+      }
+
+      const user = await this.userService.findById(
+        reactivationToken.userId,
+        tx,
+      );
+
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      if (user.status !== 'PENDING_DELETION') {
+        throw new ConflictException('Account is not pending deletion');
+      }
+
+      if (!user.deletionRequestedAt) {
+        throw new ConflictException('Deletion request date is missing');
+      }
+
+      const deadline = new Date(user.deletionRequestedAt);
+
+      deadline.setDate(deadline.getDate() + 30);
+
+      if (new Date() >= deadline) {
+        throw new ConflictException('Account deletion period has expired');
+      }
+
+      await this.accountService.enableAllByUserId(user.id, tx);
+
+      await this.userService.reactivate(user.id, tx);
+
+      await this.reactivationTokenService.markUsed(reactivationToken.id, tx);
+
+      return {
+        message: 'Account reactivated successfully',
+      };
+    });
   }
 }

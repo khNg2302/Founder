@@ -1,18 +1,12 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { PrismaTransaction } from 'prisma/prisma.types';
 import { UpdateProfileDto } from 'src/auth/dto/update-profile.dto';
-import { AccountService } from 'src/account/account.service';
-import { RefreshTokenService } from 'src/auth/refresh-token.service';
 
 @Injectable()
 export class UserService {
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly accountService: AccountService,
-    private readonly refreshTokenService: RefreshTokenService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async create(data: CreateUserDto, tx: PrismaTransaction = this.prisma) {
     return tx.user.create({
@@ -20,8 +14,8 @@ export class UserService {
     });
   }
 
-  async findById(id: string) {
-    return this.prisma.user.findUnique({
+  async findById(id: string, tx: PrismaTransaction = this.prisma) {
+    return tx.user.findUnique({
       where: {
         id,
       },
@@ -29,6 +23,8 @@ export class UserService {
         id: true,
         name: true,
         avatarUrl: true,
+        status: true,
+        deletionRequestedAt: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -51,25 +47,30 @@ export class UserService {
     });
   }
 
-  async requestAccountDeletion(userId: string, accountId: string) {
-    const account = await this.prisma.account.findFirst({
+  async markPendingDeletion(
+    userId: string,
+    tx: PrismaTransaction = this.prisma,
+  ) {
+    return tx.user.update({
       where: {
-        id: accountId,
-        userId,
-        status: 'ACTIVE',
+        id: userId,
+      },
+      data: {
+        status: 'PENDING_DELETION',
+        deletionRequestedAt: new Date(),
       },
     });
+  }
 
-    if (!account) {
-      throw new NotFoundException('Account not found');
-    }
-
-    await this.accountService.scheduleDeletion(account.id);
-
-    await this.refreshTokenService.revokeAllByAccountId(account.id);
-
-    return {
-      message: 'Account scheduled for deletion',
-    };
+  async reactivate(userId: string, tx: PrismaTransaction = this.prisma) {
+    return tx.user.update({
+      where: {
+        id: userId,
+      },
+      data: {
+        status: 'ACTIVE',
+        deletionRequestedAt: null,
+      },
+    });
   }
 }

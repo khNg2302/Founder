@@ -231,4 +231,34 @@ export class AccountService {
       },
     });
   }
+
+  async disableAllByUserId(
+    userId: string,
+    tx: PrismaTransaction = this.prisma,
+  ) {
+    return tx.account.updateMany({
+      where: {
+        userId,
+        status: 'ACTIVE',
+        deletedAt: null,
+      },
+      data: {
+        status: 'DISABLED',
+        deletedAt: new Date(),
+      },
+    });
+  }
+
+  async enableAllByUserId(userId: string, tx: PrismaTransaction = this.prisma) {
+    return tx.account.updateMany({
+      where: {
+        userId,
+        status: 'DISABLED',
+      },
+      data: {
+        status: 'ACTIVE',
+        deletedAt: null,
+      },
+    });
+  }
 }

@@ -13,12 +13,15 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { SessionController } from './session.controller';
 import { GoogleStrategy } from './strategies/google.strategy';
 import { GitHubStrategy } from './strategies/github.strategy';
+import { ReactivationTokenService } from './reactivation-token.service';
+import { TokenModule } from 'src/common/security/token/token.module';
 
 @Module({
   imports: [
     ConfigModule,
     UserModule,
     AccountModule,
+    TokenModule,
 
     JwtModule.registerAsync({
       inject: [ConfigService],
@@ -42,6 +45,7 @@ import { GitHubStrategy } from './strategies/github.strategy';
     JwtStrategy,
     GoogleStrategy,
     GitHubStrategy,
+    ReactivationTokenService,
   ],
 })
 export class AuthModule {}

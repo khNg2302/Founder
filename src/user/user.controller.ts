@@ -1,11 +1,4 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Patch,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Get, Patch, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import {
   AuthenticatedUser,
@@ -31,15 +24,5 @@ export class UserController {
     @Body() dto: UpdateProfileDto,
   ) {
     return this.userService.updateProfile(user.userId, dto);
-  }
-
-  @Delete('me')
-  @UseGuards(JwtAuthGuard)
-  async deleteMe(@CurrentUser() user: AuthenticatedUser) {
-    await this.userService.requestAccountDeletion(user.userId, user.accountId);
-
-    return {
-      message: 'Account scheduled for deletion',
-    };
   }
 }

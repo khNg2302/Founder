@@ -18,6 +18,7 @@ import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { OAuthAccount } from './types/oauth-account.type';
 import { Prisma } from 'generated/prisma/client';
 import { ReactivationTokenService } from './reactivation-token.service';
+import { RoleService } from 'src/role/role.service';
 
 @Injectable()
 export class AuthService {
@@ -28,6 +29,7 @@ export class AuthService {
     private readonly tokenService: TokenService,
     private readonly refreshTokenService: RefreshTokenService,
     private readonly reactivationTokenService: ReactivationTokenService,
+    private readonly roleService: RoleService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -48,6 +50,8 @@ export class AuthService {
         },
         tx,
       );
+
+      await this.roleService.assignDefaultUserRole(user.id, tx);
 
       const account = await this.accountService.createLocal(
         {
@@ -207,21 +211,11 @@ export class AuthService {
 
         return this.issueTokens(account);
       } catch (error) {
-        if (
-          error instanceof Prisma.PrismaClientKnownRequestError &&
-          error.code === 'P2002'
-        ) {
-          const account = await this.accountService.findByProviderAccountId(
-            oauthAccount.provider,
-            oauthAccount.providerAccountId,
-          );
-
-          if (account) {
-            return this.issueTokens(account);
-          }
-        }
-
-        throw error;
+        return this.handleOAuthConflict(
+          error,
+          oauthAccount.provider,
+          oauthAccount.providerAccountId,
+        );
       }
     }
 
@@ -234,6 +228,8 @@ export class AuthService {
           },
           tx,
         );
+
+        await this.roleService.assignDefaultUserRole(user.id, tx);
 
         return this.accountService.createOAuth(
           {
@@ -248,21 +244,11 @@ export class AuthService {
 
       return this.issueTokens(account);
     } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2002'
-      ) {
-        const account = await this.accountService.findByProviderAccountId(
-          oauthAccount.provider,
-          oauthAccount.providerAccountId,
-        );
-
-        if (account) {
-          return this.issueTokens(account);
-        }
-      }
-
-      throw error;
+      return this.handleOAuthConflict(
+        error,
+        oauthAccount.provider,
+        oauthAccount.providerAccountId,
+      );
     }
   }
 

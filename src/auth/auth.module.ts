@@ -15,6 +15,7 @@ import { GoogleStrategy } from './strategies/google.strategy';
 import { GitHubStrategy } from './strategies/github.strategy';
 import { ReactivationTokenService } from './reactivation-token.service';
 import { TokenModule } from 'src/common/security/token/token.module';
+import { RoleModule } from 'src/role/role.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { TokenModule } from 'src/common/security/token/token.module';
     UserModule,
     AccountModule,
     TokenModule,
+    RoleModule,
 
     JwtModule.registerAsync({
       inject: [ConfigService],

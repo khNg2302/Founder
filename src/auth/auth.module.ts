@@ -16,6 +16,7 @@ import { ReactivationTokenService } from './reactivation-token.service';
 import { TokenModule } from 'src/common/security/token/token.module';
 import { RoleModule } from 'src/role/role.module';
 import { RefreshTokenModule } from 'src/common/security/token/refresh-token.module';
+import { PasswordResetTokenService } from './password-reset-token.service';
 
 @Module({
   imports: [
@@ -48,6 +49,9 @@ import { RefreshTokenModule } from 'src/common/security/token/refresh-token.modu
     GoogleStrategy,
     GitHubStrategy,
     ReactivationTokenService,
+    PasswordResetTokenService,
   ],
+
+  exports: [PasswordResetTokenService],
 })
 export class AuthModule {}

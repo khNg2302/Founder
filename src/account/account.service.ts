@@ -276,4 +276,19 @@ export class AccountService {
       },
     });
   }
+
+  async updatePassword(
+    accountId: string,
+    passwordHash: string,
+    tx: PrismaTransaction = this.prisma,
+  ) {
+    return tx.account.update({
+      where: {
+        id: accountId,
+      },
+      data: {
+        passwordHash,
+      },
+    });
+  }
 }

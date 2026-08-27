@@ -26,6 +26,8 @@ import { Roles } from 'src/authorization/decorators/roles.decorator';
 import { RolesGuard } from 'src/authorization/guards/roles.guard';
 import { Permissions } from 'src/authorization/decorators/permissions.decorator';
 import { PermissionsGuard } from 'src/authorization/guards/permissions.guard';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -91,5 +93,15 @@ export class AuthController {
   @Get('users')
   findAllUsers() {
     return { message: 'Access granted' };
+  }
+
+  @Post('forgot-password')
+  forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(dto);
+  }
+
+  @Post('reset-password')
+  resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(dto);
   }
 }

@@ -19,6 +19,9 @@ import { OAuthAccount } from './types/oauth-account.type';
 import { Prisma } from 'generated/prisma/client';
 import { ReactivationTokenService } from './reactivation-token.service';
 import { RoleService } from 'src/role/role.service';
+import { PasswordResetTokenService } from './password-reset-token.service';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 @Injectable()
 export class AuthService {
@@ -30,6 +33,7 @@ export class AuthService {
     private readonly refreshTokenService: RefreshTokenService,
     private readonly reactivationTokenService: ReactivationTokenService,
     private readonly roleService: RoleService,
+    private readonly passwordResetTokenService: PasswordResetTokenService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -332,6 +336,58 @@ export class AuthService {
 
       return {
         message: 'Account reactivated successfully',
+      };
+    });
+  }
+
+  async forgotPassword(dto: ForgotPasswordDto) {
+    const account = await this.accountService.findLocalByEmail(dto.email);
+
+    if (!account || !account.passwordHash) {
+      return {
+        message: 'If the email exists, a password reset link has been sent',
+      };
+    }
+
+    const resetToken = await this.passwordResetTokenService.create(account.id);
+
+    // TODO: gửi email sau
+
+    return {
+      message: 'If the email exists, a password reset link has been sent',
+      expiresAt: resetToken.expiresAt,
+      resetToken: resetToken.token, // chỉ tạm thời để test
+    };
+  }
+
+  async resetPassword(dto: ResetPasswordDto) {
+    return this.prisma.$transaction(async (tx) => {
+      const resetToken = await this.passwordResetTokenService.findValid(
+        dto.token,
+        tx,
+      );
+
+      if (!resetToken) {
+        throw new UnauthorizedException('Invalid or expired reset token');
+      }
+
+      const passwordHash = await argon2.hash(dto.newPassword);
+
+      await this.accountService.updatePassword(
+        resetToken.accountId,
+        passwordHash,
+        tx,
+      );
+
+      await this.passwordResetTokenService.markUsed(resetToken.id, tx);
+
+      await this.refreshTokenService.revokeAllByUserId(
+        resetToken.account.userId,
+        tx,
+      );
+
+      return {
+        message: 'Password reset successfully',
       };
     });
   }

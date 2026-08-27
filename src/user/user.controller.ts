@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Patch, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import {
   AuthenticatedUser,
@@ -31,5 +31,11 @@ export class UserController {
   @Permissions('user:read')
   findAll() {
     return this.userService.findAll();
+  }
+
+  @Get(':id')
+  @Permissions('user:read')
+  findById(@Param('id') id: string) {
+    return this.userService.findByIdForAdmin(id);
   }
 }

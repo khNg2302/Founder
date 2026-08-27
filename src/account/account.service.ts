@@ -6,7 +6,7 @@ import {
 import * as argon2 from 'argon2';
 import { PrismaService } from 'prisma/prisma.service';
 import { PrismaTransaction } from 'prisma/prisma.types';
-import { RefreshTokenService } from 'src/auth/refresh-token.service';
+import { RefreshTokenService } from 'src/common/security/token/refresh-token.service';
 
 @Injectable()
 export class AccountService {

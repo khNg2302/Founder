@@ -12,7 +12,7 @@ import {
   AuthenticatedUser,
   CurrentUser,
 } from './decorators/current-user.decorator';
-import { RefreshTokenService } from './refresh-token.service';
+import { RefreshTokenService } from '../common/security/token/refresh-token.service';
 
 @Controller('sessions')
 export class SessionController {

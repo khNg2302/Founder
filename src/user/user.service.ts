@@ -141,4 +141,17 @@ export class UserService {
 
     return user;
   }
+
+  async assignRole(
+    userId: string,
+    roleId: string,
+    tx: PrismaTransaction = this.prisma,
+  ) {
+    return tx.userRole.create({
+      data: {
+        userId,
+        roleId,
+      },
+    });
+  }
 }

@@ -28,4 +28,12 @@ export class RoleService {
       },
     });
   }
+
+  async findByName(name: string, tx: PrismaTransaction = this.prisma) {
+    return tx.role.findUnique({
+      where: {
+        name,
+      },
+    });
+  }
 }

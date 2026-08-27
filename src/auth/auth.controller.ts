@@ -9,6 +9,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { Request } from 'express';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
@@ -40,6 +41,12 @@ export class AuthController {
     return this.authService.register(dto);
   }
 
+  @Throttle({
+    default: {
+      limit: 5,
+      ttl: 60_000,
+    },
+  })
   @Post('login')
   login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
@@ -97,11 +104,23 @@ export class AuthController {
     return { message: 'Access granted' };
   }
 
+  @Throttle({
+    default: {
+      limit: 3,
+      ttl: 60_000,
+    },
+  })
   @Post('forgot-password')
   forgotPassword(@Body() dto: ForgotPasswordDto) {
     return this.authService.forgotPassword(dto);
   }
 
+  @Throttle({
+    default: {
+      limit: 5,
+      ttl: 60_000,
+    },
+  })
   @Post('reset-password')
   resetPassword(@Body() dto: ResetPasswordDto) {
     return this.authService.resetPassword(dto);
@@ -112,6 +131,12 @@ export class AuthController {
     return this.authService.verifyEmail(token);
   }
 
+  @Throttle({
+    default: {
+      limit: 3,
+      ttl: 60_000,
+    },
+  })
   @Post('resend-verification')
   resendVerification(@Body() dto: ResendVerificationDto) {
     return this.authService.resendVerification(dto);

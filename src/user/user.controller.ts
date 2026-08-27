@@ -17,6 +17,7 @@ import { UpdateProfileDto } from 'src/auth/dto/update-profile.dto';
 import { Permissions } from 'src/authorization/decorators/permissions.decorator';
 import { PermissionsGuard } from 'src/authorization/guards/permissions.guard';
 import { CreateUserByAdminDto } from './dto/create-user-by-admin.dto';
+import { UpdateUserByAdminDto } from './dto/update-user-by-admin.dto';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -52,5 +53,11 @@ export class UserController {
   @Permissions('user:create')
   create(@Body() dto: CreateUserByAdminDto) {
     return this.userService.createByAdmin(dto);
+  }
+
+  @Patch(':id')
+  @Permissions('user:update')
+  update(@Param('id') id: string, @Body() dto: UpdateUserByAdminDto) {
+    return this.userService.updateByAdmin(id, dto);
   }
 }

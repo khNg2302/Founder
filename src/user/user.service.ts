@@ -12,6 +12,7 @@ import { UpdateProfileDto } from 'src/auth/dto/update-profile.dto';
 import { AccountService } from 'src/account/account.service';
 import { RoleService } from 'src/role/role.service';
 import { CreateUserByAdminDto } from './dto/create-user-by-admin.dto';
+import { UpdateUserByAdminDto } from './dto/update-user-by-admin.dto';
 
 @Injectable()
 export class UserService {
@@ -208,6 +209,34 @@ export class UserService {
         userId: user.id,
         accountId: account.id,
       };
+    });
+  }
+
+  async updateByAdmin(id: string, data: UpdateUserByAdminDto) {
+    const user = await this.prisma.user.findUnique({
+      where: {
+        id,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return this.prisma.user.update({
+      where: {
+        id,
+      },
+      data,
+      select: {
+        id: true,
+        name: true,
+        avatarUrl: true,
+        status: true,
+        deletionRequestedAt: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     });
   }
 }

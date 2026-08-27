@@ -4,6 +4,7 @@ import { PrismaModule } from 'prisma/prisma.module';
 import { AccountModule } from './account/account.module';
 import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { AuthModule } from './auth/auth.module';
     AccountModule,
     UserModule,
     AuthModule,
+    AdminModule,
   ],
 })
 export class AppModule {}

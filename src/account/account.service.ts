@@ -264,4 +264,16 @@ export class AccountService {
       },
     });
   }
+
+  async enableByUser(userId: string, tx: PrismaTransaction = this.prisma) {
+    return tx.account.updateMany({
+      where: {
+        userId,
+        status: 'DISABLED',
+      },
+      data: {
+        status: 'ACTIVE',
+      },
+    });
+  }
 }

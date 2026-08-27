@@ -185,4 +185,22 @@ export class AdminService {
 
     return this.userService.assignRole(userId, roleId);
   }
+
+  async enableUser(userId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const user = await this.userService.findById(userId, tx);
+
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      await this.userService.enable(userId, tx);
+
+      await this.accountService.enableByUser(userId, tx);
+
+      return {
+        message: 'User enabled successfully',
+      };
+    });
+  }
 }

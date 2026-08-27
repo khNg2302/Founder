@@ -57,4 +57,10 @@ export class AdminController {
   assignRole(@Param('id') userId: string, @Param('roleId') roleId: string) {
     return this.adminService.assignRole(userId, roleId);
   }
+
+  @Patch('users/:id/enable')
+  @Permissions('user:update')
+  enableUser(@Param('id') id: string) {
+    return this.adminService.enableUser(id);
+  }
 }

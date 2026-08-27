@@ -139,4 +139,15 @@ export class UserService {
       },
     });
   }
+
+  async enable(userId: string, tx: PrismaTransaction = this.prisma) {
+    return tx.user.update({
+      where: {
+        id: userId,
+      },
+      data: {
+        status: 'ACTIVE',
+      },
+    });
+  }
 }

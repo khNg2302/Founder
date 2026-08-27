@@ -11,7 +11,7 @@ import { UserService } from 'src/user/user.service';
 import { AccountService } from 'src/account/account.service';
 import { RoleService } from 'src/role/role.service';
 
-import { RefreshTokenService } from 'src/common/security/token/refresh-token.service';
+import { RefreshTokenService } from 'src/auth/refresh-token.service';
 
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';

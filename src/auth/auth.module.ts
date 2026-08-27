@@ -15,8 +15,10 @@ import { GitHubStrategy } from './strategies/github.strategy';
 import { ReactivationTokenService } from './reactivation-token.service';
 import { TokenModule } from 'src/common/security/token/token.module';
 import { RoleModule } from 'src/role/role.module';
-import { RefreshTokenModule } from 'src/common/security/token/refresh-token.module';
+
 import { PasswordResetTokenService } from './password-reset-token.service';
+import { RefreshTokenModule } from './refresh-token.module';
+import { EmailVerificationTokenService } from './email-verification-token.service';
 
 @Module({
   imports: [
@@ -50,6 +52,7 @@ import { PasswordResetTokenService } from './password-reset-token.service';
     GitHubStrategy,
     ReactivationTokenService,
     PasswordResetTokenService,
+    EmailVerificationTokenService,
   ],
 
   exports: [PasswordResetTokenService],

@@ -11,7 +11,7 @@ import { AccountService } from '../account/account.service';
 import { UserService } from '../user/user.service';
 import { RegisterDto } from './dto/register.dto';
 import { TokenService } from './token.service';
-import { RefreshTokenService } from '../common/security/token/refresh-token.service';
+import { RefreshTokenService } from './refresh-token.service';
 
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
@@ -22,6 +22,8 @@ import { RoleService } from 'src/role/role.service';
 import { PasswordResetTokenService } from './password-reset-token.service';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { EmailVerificationTokenService } from './email-verification-token.service';
+import { ResendVerificationDto } from './dto/resend-verification.dto';
 
 @Injectable()
 export class AuthService {
@@ -34,6 +36,7 @@ export class AuthService {
     private readonly reactivationTokenService: ReactivationTokenService,
     private readonly roleService: RoleService,
     private readonly passwordResetTokenService: PasswordResetTokenService,
+    private readonly emailVerificationTokenService: EmailVerificationTokenService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -55,8 +58,6 @@ export class AuthService {
         tx,
       );
 
-      await this.roleService.assignDefaultUserRole(user.id, tx);
-
       const account = await this.accountService.createLocal(
         {
           userId: user.id,
@@ -66,9 +67,16 @@ export class AuthService {
         tx,
       );
 
+      const verificationToken = await this.emailVerificationTokenService.create(
+        account.id,
+        tx,
+      );
+
       return {
         userId: user.id,
         accountId: account.id,
+        verificationToken: verificationToken.token,
+        expiresAt: verificationToken.expiresAt,
       };
     });
   }
@@ -388,6 +396,70 @@ export class AuthService {
 
       return {
         message: 'Password reset successfully',
+      };
+    });
+  }
+
+  async verifyEmail(token: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const verificationToken =
+        await this.emailVerificationTokenService.findValid(token, tx);
+
+      if (!verificationToken) {
+        throw new UnauthorizedException(
+          'Invalid or expired verification token',
+        );
+      }
+
+      if (verificationToken.account.emailVerifiedAt) {
+        throw new ConflictException('Email is already verified');
+      }
+
+      await this.accountService.verifyEmail(verificationToken.accountId, tx);
+
+      await this.emailVerificationTokenService.markUsed(
+        verificationToken.id,
+        tx,
+      );
+
+      return {
+        message: 'Email verified successfully',
+      };
+    });
+  }
+
+  async resendVerification(dto: ResendVerificationDto) {
+    return this.prisma.$transaction(async (tx) => {
+      const account = await this.accountService.findLocalByEmail(dto.email, tx);
+
+      if (!account || !account.passwordHash) {
+        return {
+          message: 'If the email exists, a verification email has been sent',
+        };
+      }
+
+      if (account.emailVerifiedAt) {
+        return {
+          message: 'If the email exists, a verification email has been sent',
+        };
+      }
+
+      await this.emailVerificationTokenService.invalidateByAccountId(
+        account.id,
+        tx,
+      );
+
+      const verificationToken = await this.emailVerificationTokenService.create(
+        account.id,
+        tx,
+      );
+
+      // TODO: send email
+
+      return {
+        message: 'If the email exists, a verification email has been sent',
+        verificationToken: verificationToken.token, // temporary for testing
+        expiresAt: verificationToken.expiresAt,
       };
     });
   }

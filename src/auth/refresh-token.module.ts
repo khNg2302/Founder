@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 
 import { RefreshTokenService } from './refresh-token.service';
-import { TokenModule } from './token.module';
+import { TokenModule } from 'src/common/security/token/token.module';
 
 @Module({
   imports: [TokenModule],

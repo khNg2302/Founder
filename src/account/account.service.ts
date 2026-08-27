@@ -6,7 +6,7 @@ import {
 import * as argon2 from 'argon2';
 import { PrismaService } from 'prisma/prisma.service';
 import { PrismaTransaction } from 'prisma/prisma.types';
-import { RefreshTokenService } from 'src/common/security/token/refresh-token.service';
+import { RefreshTokenService } from 'src/auth/refresh-token.service';
 
 @Injectable()
 export class AccountService {
@@ -15,11 +15,12 @@ export class AccountService {
     private readonly refreshTokenService: RefreshTokenService,
   ) {}
 
-  async findLocalByEmail(email: string) {
-    return this.prisma.account.findFirst({
+  async findLocalByEmail(email: string, tx: PrismaTransaction = this.prisma) {
+    return tx.account.findFirst({
       where: {
-        email,
         provider: 'LOCAL',
+        email,
+        deletedAt: null,
       },
     });
   }
@@ -288,6 +289,17 @@ export class AccountService {
       },
       data: {
         passwordHash,
+      },
+    });
+  }
+
+  async verifyEmail(accountId: string, tx: PrismaTransaction = this.prisma) {
+    return tx.account.update({
+      where: {
+        id: accountId,
+      },
+      data: {
+        emailVerifiedAt: new Date(),
       },
     });
   }

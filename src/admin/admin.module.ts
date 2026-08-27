@@ -7,7 +7,7 @@ import { RoleModule } from 'src/role/role.module';
 
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
-import { RefreshTokenModule } from 'src/common/security/token/refresh-token.module';
+import { RefreshTokenModule } from 'src/auth/refresh-token.module';
 
 @Module({
   imports: [

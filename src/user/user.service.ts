@@ -1,28 +1,17 @@
-import {
-  ConflictException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
-import * as argon2 from 'argon2';
+import { Injectable } from '@nestjs/common';
 
 import { PrismaService } from 'prisma/prisma.service';
-import { CreateUserDto } from './dto/create-user.dto';
+
 import { PrismaTransaction } from 'prisma/prisma.types';
 import { UpdateProfileDto } from 'src/auth/dto/update-profile.dto';
-import { AccountService } from 'src/account/account.service';
-import { RoleService } from 'src/role/role.service';
-import { CreateUserByAdminDto } from './dto/create-user-by-admin.dto';
-import { UpdateUserByAdminDto } from './dto/update-user-by-admin.dto';
+import { CreateUserInput } from './types/create-user.input';
+import { UpdateUserInput } from './types/update-user.input';
 
 @Injectable()
 export class UserService {
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly accountService: AccountService,
-    private readonly roleService: RoleService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
-  async create(data: CreateUserDto, tx: PrismaTransaction = this.prisma) {
+  async create(data: CreateUserInput, tx: PrismaTransaction = this.prisma) {
     return tx.user.create({
       data,
     });
@@ -55,6 +44,28 @@ export class UserService {
         id: true,
         name: true,
         avatarUrl: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+  }
+
+  async updateById(
+    id: string,
+    data: UpdateUserInput,
+    tx: PrismaTransaction = this.prisma,
+  ) {
+    return tx.user.update({
+      where: {
+        id,
+      },
+      data,
+      select: {
+        id: true,
+        name: true,
+        avatarUrl: true,
+        status: true,
+        deletionRequestedAt: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -98,62 +109,11 @@ export class UserService {
         deletionRequestedAt: true,
         createdAt: true,
         updatedAt: true,
-        userRoles: {
-          select: {
-            role: {
-              select: {
-                name: true,
-              },
-            },
-          },
-        },
       },
       orderBy: {
         createdAt: 'desc',
       },
     });
-  }
-
-  async findByIdForAdmin(id: string) {
-    const user = await this.prisma.user.findUnique({
-      where: {
-        id,
-      },
-      select: {
-        id: true,
-        name: true,
-        avatarUrl: true,
-        status: true,
-        deletionRequestedAt: true,
-        createdAt: true,
-        updatedAt: true,
-        userRoles: {
-          select: {
-            role: {
-              select: {
-                name: true,
-                description: true,
-              },
-            },
-          },
-        },
-        accounts: {
-          select: {
-            id: true,
-            provider: true,
-            email: true,
-            status: true,
-            createdAt: true,
-          },
-        },
-      },
-    });
-
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    return user;
   }
 
   async assignRole(
@@ -169,118 +129,14 @@ export class UserService {
     });
   }
 
-  async createByAdmin(dto: CreateUserByAdminDto) {
-    const existingAccount = await this.accountService.findLocalByEmail(
-      dto.email,
-    );
-
-    if (existingAccount) {
-      throw new ConflictException('Email already exists');
-    }
-
-    const role = await this.roleService.findByName(dto.role);
-
-    if (!role) {
-      throw new NotFoundException('Role not found');
-    }
-
-    const passwordHash = await argon2.hash(dto.password);
-
-    return this.prisma.$transaction(async (tx) => {
-      const user = await this.create(
-        {
-          name: dto.name,
-        },
-        tx,
-      );
-
-      await this.assignRole(user.id, role.id, tx);
-
-      const account = await this.accountService.createLocal(
-        {
-          userId: user.id,
-          email: dto.email,
-          passwordHash,
-        },
-        tx,
-      );
-
-      return {
-        userId: user.id,
-        accountId: account.id,
-      };
-    });
-  }
-
-  async updateByAdmin(id: string, data: UpdateUserByAdminDto) {
-    const user = await this.prisma.user.findUnique({
+  async disable(userId: string, tx: PrismaTransaction = this.prisma) {
+    return tx.user.update({
       where: {
-        id,
-      },
-    });
-
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    return this.prisma.user.update({
-      where: {
-        id,
-      },
-      data,
-      select: {
-        id: true,
-        name: true,
-        avatarUrl: true,
-        status: true,
-        deletionRequestedAt: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
-  }
-
-  async disableByAdmin(userId: string) {
-    return this.prisma.$transaction(async (tx) => {
-      return this.disableByAdminInTransaction(userId, tx);
-    });
-  }
-
-  private async disableByAdminInTransaction(
-    userId: string,
-    tx: PrismaTransaction,
-  ) {
-    const user = await tx.user.findUnique({
-      where: { id: userId },
-      select: { id: true },
-    });
-
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    await tx.account.updateMany({
-      where: {
-        userId,
-        status: 'ACTIVE',
+        id: userId,
       },
       data: {
         status: 'DISABLED',
       },
     });
-
-    await tx.refreshToken.updateMany({
-      where: {
-        userId,
-        revokedAt: null,
-      },
-      data: {
-        revokedAt: new Date(),
-      },
-    });
-
-    return {
-      message: 'User disabled successfully',
-    };
   }
 }

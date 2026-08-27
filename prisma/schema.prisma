@@ -10,6 +10,7 @@ datasource db {
 enum UserStatus {
   ACTIVE
   PENDING_DELETION
+  DISABLED
 }
 
 enum AccountProvider {
@@ -37,7 +38,7 @@ model User {
   refreshTokens      RefreshToken[]
   reactivationTokens ReactivationToken[]
 
-   userRoles UserRole[]
+  userRoles UserRole[]
 }
 
 model Account {
@@ -93,42 +94,42 @@ model ReactivationToken {
 }
 
 model Role {
-  id            String         @id @default(cuid())
-  name          String         @unique
-  description   String?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  userRoles     UserRole[]
-  permissions   RolePermission[]
+  userRoles   UserRole[]
+  permissions RolePermission[]
 }
 
 model Permission {
-  id String @id @default(cuid())
-  name          String         @unique
-  description   String?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  roles         RolePermission[]
+  roles RolePermission[]
 }
 
 model RolePermission {
-  roleId        String
-  permissionId  String
+  roleId       String
+  permissionId String
 
-  role          Role         @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  permission    Permission   @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
 
   @@id([roleId, permissionId])
 }
 
 model UserRole {
-  userId        String
-  roleId        String
+  userId String
+  roleId String
 
-  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role          Role         @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
   @@id([userId, roleId])
 }

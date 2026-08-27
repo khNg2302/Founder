@@ -36,4 +36,12 @@ export class RoleService {
       },
     });
   }
+
+  async findById(id: string, tx: PrismaTransaction = this.prisma) {
+    return tx.role.findUnique({
+      where: {
+        id,
+      },
+    });
+  }
 }

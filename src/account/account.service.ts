@@ -120,15 +120,6 @@ export class AccountService {
     });
 
     await this.refreshTokenService.revokeAllByAccountId(account.id);
-
-    await this.prisma.account.update({
-      where: {
-        id: account.id,
-      },
-      data: {
-        passwordHash,
-      },
-    });
   }
 
   async changeEmail(

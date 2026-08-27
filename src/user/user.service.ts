@@ -239,4 +239,48 @@ export class UserService {
       },
     });
   }
+
+  async disableByAdmin(userId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      return this.disableByAdminInTransaction(userId, tx);
+    });
+  }
+
+  private async disableByAdminInTransaction(
+    userId: string,
+    tx: PrismaTransaction,
+  ) {
+    const user = await tx.user.findUnique({
+      where: { id: userId },
+      select: { id: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    await tx.account.updateMany({
+      where: {
+        userId,
+        status: 'ACTIVE',
+      },
+      data: {
+        status: 'DISABLED',
+      },
+    });
+
+    await tx.refreshToken.updateMany({
+      where: {
+        userId,
+        revokedAt: null,
+      },
+      data: {
+        revokedAt: new Date(),
+      },
+    });
+
+    return {
+      message: 'User disabled successfully',
+    };
+  }
 }

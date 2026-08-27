@@ -60,4 +60,10 @@ export class UserController {
   update(@Param('id') id: string, @Body() dto: UpdateUserByAdminDto) {
     return this.userService.updateByAdmin(id, dto);
   }
+
+  @Patch(':id/disable')
+  @Permissions('user:update')
+  disable(@Param('id') id: string) {
+    return this.userService.disableByAdmin(id);
+  }
 }

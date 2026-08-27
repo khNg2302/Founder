@@ -19,7 +19,6 @@ import { OAuthAccount } from './types/oauth-account.type';
 import { Prisma } from 'generated/prisma/client';
 import { ReactivationTokenService } from './reactivation-token.service';
 import { RoleService } from 'src/role/role.service';
-import { CreateUserByAdminDto } from 'src/user/dto/create-user-by-admin.dto';
 
 @Injectable()
 export class AuthService {
@@ -333,49 +332,6 @@ export class AuthService {
 
       return {
         message: 'Account reactivated successfully',
-      };
-    });
-  }
-
-  async createUserByAdmin(dto: CreateUserByAdminDto) {
-    const existingAccount = await this.accountService.findLocalByEmail(
-      dto.email,
-    );
-
-    if (existingAccount) {
-      throw new ConflictException('Email already exists');
-    }
-
-    const role = await this.roleService.findByName(dto.role);
-
-    if (!role) {
-      throw new NotFoundException('Role not found');
-    }
-
-    const passwordHash = await argon2.hash(dto.password);
-
-    return this.prisma.$transaction(async (tx) => {
-      const user = await this.userService.create(
-        {
-          name: dto.name,
-        },
-        tx,
-      );
-
-      await this.userService.assignRole(user.id, role.id, tx);
-
-      const account = await this.accountService.createLocal(
-        {
-          userId: user.id,
-          email: dto.email,
-          passwordHash,
-        },
-        tx,
-      );
-
-      return {
-        userId: user.id,
-        accountId: account.id,
       };
     });
   }

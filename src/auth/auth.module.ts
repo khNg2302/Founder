@@ -36,6 +36,7 @@ import { EmailVerificationTokenService } from './email-verification-token.servic
         secret: configService.getOrThrow<string>('JWT_ACCESS_SECRET'),
 
         signOptions: {
+          algorithm: 'HS256',
           expiresIn: '15m',
         },
       }),

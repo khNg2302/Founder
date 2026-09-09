@@ -88,12 +88,27 @@ model UserCategory {
   @@index([categoryId])
 }
 
+model AudienceType {
+  id          String   @id
+  name        String
+  description String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @map("created_at")
+  updatedAt   DateTime @map("updated_at")
+
+  userAudiences UserAudience[]
+
+  @@map("audience_types")
+}
+
 model UserAudience {
   id             String @id @default(cuid())
   userId         String
   audienceTypeId String
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  audienceType AudienceType @relation(fields: [audienceTypeId], references: [id])
 
   @@unique([userId, audienceTypeId], name: "uk_user_audience")
   @@index([audienceTypeId])

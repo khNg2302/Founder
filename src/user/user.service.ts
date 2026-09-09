@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 
 import { PrismaService } from 'prisma/prisma.service';
 
@@ -157,5 +157,68 @@ export class UserService {
         status: 'ACTIVE',
       },
     });
+  }
+
+  async findAudiences(userId: string) {
+    return this.prisma.userAudience.findMany({
+      where: {
+        userId,
+      },
+      select: {
+        audienceType: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+          },
+        },
+      },
+      orderBy: {
+        audienceType: {
+          name: 'asc',
+        },
+      },
+    });
+  }
+
+  async replaceAudiences(userId: string, audienceTypeIds: string[]) {
+    const uniqueIds = [...new Set(audienceTypeIds)];
+
+    const audienceTypes = await this.prisma.audienceType.findMany({
+      where: {
+        id: {
+          in: uniqueIds,
+        },
+        active: true,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (audienceTypes.length !== uniqueIds.length) {
+      throw new BadRequestException(
+        'One or more audience types are invalid or inactive',
+      );
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.userAudience.deleteMany({
+        where: {
+          userId,
+        },
+      });
+
+      if (uniqueIds.length > 0) {
+        await tx.userAudience.createMany({
+          data: uniqueIds.map((audienceTypeId) => ({
+            userId,
+            audienceTypeId,
+          })),
+        });
+      }
+    });
+
+    return this.findAudiences(userId);
   }
 }

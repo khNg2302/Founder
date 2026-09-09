@@ -3,7 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 
 import { PrismaTransaction } from 'prisma/prisma.types';
-import { UpdateProfileDto } from 'src/auth/dto/update-profile.dto';
+import { UpdateProfileDto } from 'src/user/dto/update-profile.dto';
 import { CreateUserInput } from './types/create-user.input';
 import { UpdateUserInput } from './types/update-user.input';
 
@@ -24,7 +24,9 @@ export class UserService {
       },
       select: {
         id: true,
-        name: true,
+        fullName: true,
+        nickname: true,
+        ageRange: true,
         avatarUrl: true,
         status: true,
         deletionRequestedAt: true,
@@ -42,7 +44,9 @@ export class UserService {
       data,
       select: {
         id: true,
-        name: true,
+        fullName: true,
+        nickname: true,
+        ageRange: true,
         avatarUrl: true,
         createdAt: true,
         updatedAt: true,
@@ -62,7 +66,9 @@ export class UserService {
       data,
       select: {
         id: true,
-        name: true,
+        fullName: true,
+        nickname: true,
+        ageRange: true,
         avatarUrl: true,
         status: true,
         deletionRequestedAt: true,
@@ -103,7 +109,9 @@ export class UserService {
     return this.prisma.user.findMany({
       select: {
         id: true,
-        name: true,
+        fullName: true,
+        nickname: true,
+        ageRange: true,
         avatarUrl: true,
         status: true,
         deletionRequestedAt: true,

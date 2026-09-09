@@ -30,7 +30,7 @@ export class AdminService {
     return this.prisma.user.findMany({
       select: {
         id: true,
-        name: true,
+        fullName: true,
         avatarUrl: true,
         status: true,
         deletionRequestedAt: true,
@@ -59,7 +59,7 @@ export class AdminService {
       },
       select: {
         id: true,
-        name: true,
+        fullName: true,
         avatarUrl: true,
         status: true,
         deletionRequestedAt: true,

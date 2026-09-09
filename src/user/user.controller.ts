@@ -5,7 +5,7 @@ import {
   CurrentUser,
 } from '../auth/decorators/current-user.decorator';
 import { UserService } from './user.service';
-import { UpdateProfileDto } from 'src/auth/dto/update-profile.dto';
+import { UpdateProfileDto } from 'src/user/dto/update-profile.dto';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard)

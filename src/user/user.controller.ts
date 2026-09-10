@@ -17,6 +17,7 @@ import { UpdateProfileDto } from 'src/user/dto/update-profile.dto';
 import { UpdateUserAudiencesDto } from './dto/update-user-audiences.dto';
 import { UpdateUserCategoriesDto } from './dto/update-user-categories.dto';
 import { CurrentAccessToken } from 'src/auth/decorators/current-access-token.decorator';
+import { UpdateUserContributionsDto } from './dto/update-user-contributions.dto';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard)
@@ -68,5 +69,18 @@ export class UserController {
       dto.categoryIds,
       accessToken,
     );
+  }
+
+  @Get('me/contributions')
+  getMyContributions(@CurrentUser() user: AuthenticatedUser) {
+    return this.userService.findContributions(user.userId);
+  }
+
+  @Put('me/contributions')
+  replaceMyContributions(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: UpdateUserContributionsDto,
+  ) {
+    return this.userService.replaceContributions(user.userId, dto.items);
   }
 }

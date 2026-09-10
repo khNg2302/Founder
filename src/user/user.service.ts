@@ -8,6 +8,7 @@ import { CreateUserInput } from './types/create-user.input';
 import { UpdateUserInput } from './types/update-user.input';
 import { CategoryClient } from 'src/category/category.client';
 import { CategoryResponse } from 'src/category/types/category-response';
+import { UserContributionItemDto } from './dto/update-user-contributions.dto';
 
 @Injectable()
 export class UserService {
@@ -296,5 +297,56 @@ export class UserService {
     });
 
     return categories;
+  }
+
+  async findContributions(userId: string) {
+    return this.prisma.userContribution.findMany({
+      where: { userId },
+      include: {
+        contribution: true,
+      },
+      orderBy: {
+        createdAt: 'asc',
+      },
+    });
+  }
+
+  async replaceContributions(userId: string, items: UserContributionItemDto[]) {
+    const uniqueIds = [...new Set(items.map((item) => item.contributionId))];
+
+    const contributions = await this.prisma.contribution.findMany({
+      where: {
+        id: {
+          in: uniqueIds,
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (contributions.length !== uniqueIds.length) {
+      throw new BadRequestException('One or more contributions are invalid');
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.userContribution.deleteMany({
+        where: {
+          userId,
+        },
+      });
+
+      if (items.length > 0) {
+        await tx.userContribution.createMany({
+          data: items.map((item) => ({
+            userId,
+            contributionId: item.contributionId,
+            description: item.description?.trim() || null,
+          })),
+        });
+      }
+    });
+
+    return this.findContributions(userId);
   }
 }

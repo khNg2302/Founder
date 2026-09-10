@@ -12,6 +12,7 @@ import { ContributionModule } from './contribution/contribution.module';
 import { ExperienceModule } from './experience/experience.module';
 import { AssessmentModule } from './assessment/assessment.module';
 import { AssessmentQuestionModule } from './assessment-question/assessment-question.module';
+import { ParticipationModule } from './participation/participation.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { AssessmentQuestionModule } from './assessment-question/assessment-quest
     ExperienceModule,
     AssessmentModule,
     AssessmentQuestionModule,
+    ParticipationModule,
   ],
   providers: [
     {

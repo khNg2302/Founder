@@ -6,10 +6,15 @@ import { PrismaTransaction } from 'prisma/prisma.types';
 import { UpdateProfileDto } from 'src/user/dto/update-profile.dto';
 import { CreateUserInput } from './types/create-user.input';
 import { UpdateUserInput } from './types/update-user.input';
+import { CategoryClient } from 'src/category/category.client';
+import { CategoryResponse } from 'src/category/types/category-response';
 
 @Injectable()
 export class UserService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly categoryClient: CategoryClient,
+  ) {}
 
   async create(data: CreateUserInput, tx: PrismaTransaction = this.prisma) {
     return tx.user.create({
@@ -220,5 +225,76 @@ export class UserService {
     });
 
     return this.findAudiences(userId);
+  }
+
+  async findCategories(userId: string, accessToken: string) {
+    const userCategories = await this.prisma.userCategory.findMany({
+      where: {
+        userId,
+      },
+      select: {
+        categoryId: true,
+      },
+    });
+
+    const categoryIds = userCategories.map((item) => item.categoryId);
+
+    if (categoryIds.length === 0) {
+      return [];
+    }
+
+    return this.categoryClient.findByIds(categoryIds, accessToken);
+  }
+
+  private validateCategoryHierarchy(categories: CategoryResponse[]) {
+    const selectedIds = new Set(categories.map((category) => category.id));
+
+    for (const category of categories) {
+      if (!category.parentId) {
+        continue;
+      }
+
+      if (selectedIds.has(category.parentId)) {
+        continue;
+      }
+
+      if (category.type === 'NICHE' || category.type === 'INDUSTRY') {
+        continue;
+      }
+    }
+  }
+
+  async replaceCategories(
+    userId: string,
+    categoryIds: string[],
+    accessToken: string,
+  ) {
+    const uniqueIds = [...new Set(categoryIds)];
+
+    const categories = await this.categoryClient.findByIds(
+      uniqueIds,
+      accessToken,
+    );
+
+    this.validateCategoryHierarchy(categories);
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.userCategory.deleteMany({
+        where: {
+          userId,
+        },
+      });
+
+      if (uniqueIds.length > 0) {
+        await tx.userCategory.createMany({
+          data: uniqueIds.map((categoryId) => ({
+            userId,
+            categoryId,
+          })),
+        });
+      }
+    });
+
+    return categories;
   }
 }

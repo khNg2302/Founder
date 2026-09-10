@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Patch, Put, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Headers,
+  Patch,
+  Put,
+  UseGuards,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import {
   AuthenticatedUser,
@@ -7,6 +15,7 @@ import {
 import { UserService } from './user.service';
 import { UpdateProfileDto } from 'src/user/dto/update-profile.dto';
 import { UpdateUserAudiencesDto } from './dto/update-user-audiences.dto';
+import { UpdateUserCategoriesDto } from './dto/update-user-categories.dto';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard)
@@ -37,5 +46,26 @@ export class UserController {
     @Body() dto: UpdateUserAudiencesDto,
   ) {
     return this.userService.replaceAudiences(user.userId, dto.audienceTypeIds);
+  }
+
+  @Get('me/categories')
+  getMyCategories(
+    @CurrentUser() user: AuthenticatedUser,
+    @Headers('authorization') authorization: string,
+  ) {
+    return this.userService.findCategories(user.userId, authorization);
+  }
+
+  @Put('me/categories')
+  replaceMyCategories(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: UpdateUserCategoriesDto,
+    @Headers('authorization') authorization: string,
+  ) {
+    return this.userService.replaceCategories(
+      user.userId,
+      dto.categoryIds,
+      authorization,
+    );
   }
 }

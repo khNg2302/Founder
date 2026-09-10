@@ -177,6 +177,11 @@ model Experience {
   @@index([contributionId])
 }
 
+enum AssessmentQuestionType {
+  SINGLE_CHOICE
+  MULTIPLE_CHOICE
+}
+
 enum AssessmentResultStatus {
   PASSED
   FAILED
@@ -186,22 +191,59 @@ model Assessment {
   id             String @id @default(cuid())
   contributionId String
 
-  name    String
-  version Int
-
-  passingScore  Int
-  maxAttempts   Int?
-  cooldownHours Int?
+  name         String
+  version      Int
+  passingScore Int
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   contribution Contribution @relation(fields: [contributionId], references: [id])
 
-  results AssessmentResult[]
+  questions AssessmentQuestion[]
+  results   AssessmentResult[]
 
   @@unique([contributionId, version], name: "uk_assessment_contribution_version")
   @@index([contributionId])
+}
+
+model AssessmentQuestion {
+  id           String @id @default(cuid())
+  assessmentId String
+
+  content String
+  type    AssessmentQuestionType
+  order   Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  options AssessmentOption[]
+  answers AssessmentAnswer[]
+
+  @@unique([assessmentId, order], name: "uk_assessment_question_order")
+  @@index([assessmentId])
+}
+
+model AssessmentOption {
+  id         String @id @default(cuid())
+  questionId String
+
+  content   String
+  isCorrect Boolean
+  order     Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  question AssessmentQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  selectedBy AssessmentAnswerOption[]
+
+  @@unique([questionId, order], name: "uk_assessment_option_order")
+  @@index([questionId])
 }
 
 model AssessmentResult {
@@ -213,12 +255,41 @@ model AssessmentResult {
   result  AssessmentResultStatus
   takenAt DateTime               @default(now())
 
+  answers AssessmentAnswer[]
+
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   assessment Assessment @relation(fields: [assessmentId], references: [id])
 
   @@index([userId])
   @@index([assessmentId])
+}
+
+model AssessmentAnswer {
+  id                 String @id @default(cuid())
+  assessmentResultId String
+  questionId         String
+
+  result AssessmentResult @relation(fields: [assessmentResultId], references: [id], onDelete: Cascade)
+
+  question AssessmentQuestion @relation(fields: [questionId], references: [id])
+
+  selectedOptions AssessmentAnswerOption[]
+
+  @@unique([assessmentResultId, questionId], name: "uk_assessment_answer_question")
+  @@index([questionId])
+}
+
+model AssessmentAnswerOption {
+  answerId String
+  optionId String
+
+  answer AssessmentAnswer @relation(fields: [answerId], references: [id], onDelete: Cascade)
+
+  option AssessmentOption @relation(fields: [optionId], references: [id])
+
+  @@id([answerId, optionId])
+  @@index([optionId])
 }
 
 enum ParticipationIntent {

@@ -39,6 +39,10 @@ export class HttpExceptionFilter implements ExceptionFilter {
           ? exceptionMessage.join(', ')
           : String(exceptionMessage);
       }
+    } else {
+      console.error('========== UNHANDLED EXCEPTION ==========');
+      console.error(exception);
+      console.error('========================================');
     }
 
     response.status(status).json({

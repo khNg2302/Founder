@@ -11,6 +11,7 @@ import { AdminModule } from './admin/admin.module';
 import { ContributionModule } from './contribution/contribution.module';
 import { ExperienceModule } from './experience/experience.module';
 import { AssessmentModule } from './assessment/assessment.module';
+import { AssessmentQuestionModule } from './assessment-question/assessment-question.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { AssessmentModule } from './assessment/assessment.module';
     ContributionModule,
     ExperienceModule,
     AssessmentModule,
+    AssessmentQuestionModule,
   ],
   providers: [
     {

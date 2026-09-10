@@ -1,4 +1,5 @@
 import {
+  ForbiddenException,
   Injectable,
   NotFoundException,
   ServiceUnavailableException,
@@ -11,22 +12,29 @@ export class CategoryClient {
   private readonly baseUrl =
     process.env.SPRING_API_URL ?? 'http://localhost:8081';
 
-  async findById(id: string, authorization: string): Promise<CategoryResponse> {
+  async findById(id: string, accessToken: string): Promise<CategoryResponse> {
     try {
-      const response = await fetch(`${this.baseUrl}/categories/${id}`, {
-        method: 'GET',
-        headers: {
-          Authorization: authorization,
-          Accept: 'application/json',
+      const response = await fetch(
+        `${this.baseUrl}/categories/${encodeURIComponent(id)}`,
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
         },
-      });
-
-      if (response.status === 401) {
-        throw new UnauthorizedException('Unauthorized');
-      }
+      );
 
       if (response.status === 404) {
         throw new NotFoundException(`Category '${id}' not found`);
+      }
+
+      if (response.status === 401) {
+        throw new UnauthorizedException(
+          'Category service rejected the access token',
+        );
+      }
+
+      if (response.status === 403) {
+        throw new ForbiddenException('Access denied by category service');
       }
 
       if (!response.ok) {
@@ -38,8 +46,9 @@ export class CategoryClient {
       return (await response.json()) as CategoryResponse;
     } catch (error) {
       if (
-        error instanceof UnauthorizedException ||
         error instanceof NotFoundException ||
+        error instanceof UnauthorizedException ||
+        error instanceof ForbiddenException ||
         error instanceof ServiceUnavailableException
       ) {
         throw error;
@@ -53,8 +62,8 @@ export class CategoryClient {
 
   async findByIds(
     ids: string[],
-    authorization: string,
+    accessToken: string,
   ): Promise<CategoryResponse[]> {
-    return Promise.all(ids.map((id) => this.findById(id, authorization)));
+    return Promise.all(ids.map((id) => this.findById(id, accessToken)));
   }
 }

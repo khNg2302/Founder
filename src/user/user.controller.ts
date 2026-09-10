@@ -16,6 +16,7 @@ import { UserService } from './user.service';
 import { UpdateProfileDto } from 'src/user/dto/update-profile.dto';
 import { UpdateUserAudiencesDto } from './dto/update-user-audiences.dto';
 import { UpdateUserCategoriesDto } from './dto/update-user-categories.dto';
+import { CurrentAccessToken } from 'src/auth/decorators/current-access-token.decorator';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard)
@@ -51,21 +52,21 @@ export class UserController {
   @Get('me/categories')
   getMyCategories(
     @CurrentUser() user: AuthenticatedUser,
-    @Headers('authorization') authorization: string,
+    @CurrentAccessToken() accessToken: string,
   ) {
-    return this.userService.findCategories(user.userId, authorization);
+    return this.userService.findCategories(user.userId, accessToken);
   }
 
   @Put('me/categories')
   replaceMyCategories(
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: UpdateUserCategoriesDto,
-    @Headers('authorization') authorization: string,
+    @CurrentAccessToken() accessToken: string,
   ) {
     return this.userService.replaceCategories(
       user.userId,
       dto.categoryIds,
-      authorization,
+      accessToken,
     );
   }
 }

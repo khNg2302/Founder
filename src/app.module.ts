@@ -8,6 +8,7 @@ import { AccountModule } from './account/account.module';
 import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
 import { AdminModule } from './admin/admin.module';
+import { ContributionModule } from './contribution/contribution.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { AdminModule } from './admin/admin.module';
     UserModule,
     AuthModule,
     AdminModule,
+    ContributionModule,
   ],
   providers: [
     {

@@ -32,6 +32,95 @@ enum AgeRange {
   AGE_55_PLUS
 }
 
+enum CategoryType {
+  FIELD
+  INDUSTRY
+  NICHE
+}
+
+enum ProjectScope {
+  INTERNATIONAL
+  NATIONAL
+  LOCAL
+}
+
+enum ProjectStage {
+  IDEA
+  VALIDATION
+  MVP
+  ACTIVE
+  GROWTH
+}
+
+enum ProjectActivityStatus {
+  IN_PROGRESS
+  PAUSED
+  COMPLETED
+  CANCELLED
+}
+
+enum HumanCriterionStatus {
+  YES
+  NO
+}
+
+enum LocationType {
+  COUNTRY
+  PROVINCE
+  CITY
+  DISTRICT
+  OTHER
+}
+
+enum ParticipationPeriodType {
+  UNSPECIFIED
+  DURATION
+  DATE_RANGE
+}
+
+enum ParticipationDurationUnit {
+  DAY
+  WEEK
+  MONTH
+  YEAR
+}
+
+enum ParticipationIntent {
+  JOIN_PROJECT
+  BECOME_COFOUNDER
+}
+
+enum ParticipationRole {
+  FOUNDER
+  COFOUNDER
+  TEAM_MEMBER
+}
+
+enum ParticipationStatus {
+  REQUESTED
+  ACTIVE
+  REJECTED
+  CANCELLED
+  LEFT
+  REMOVED
+  COMPLETED
+}
+
+enum ProjectStatusIndicatorStatus {
+  YES
+  NO
+}
+
+enum AssessmentQuestionType {
+  SINGLE_CHOICE
+  MULTIPLE_CHOICE
+}
+
+enum AssessmentResultStatus {
+  PASSED
+  FAILED
+}
+
 model User {
   id String @id @default(cuid())
 
@@ -70,11 +159,191 @@ model User {
   assessmentResults AssessmentResult[]
 
   // Project relationship
+  projects       Project[]
   participations Participation[]
 
   // Community feedback
   feedbackGiven    CommunityFeedback[] @relation("FeedbackReviewer")
   feedbackReceived CommunityFeedback[] @relation("FeedbackReviewedUser")
+}
+
+model Category {
+  id       String       @id @default(cuid())
+  name     String       @db.VarChar(100)
+  type     CategoryType
+  parentId String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  parent   Category?  @relation("CategoryParent", fields: [parentId], references: [id])
+  children Category[] @relation("CategoryParent")
+
+  projectCategories ProjectCategory[]
+
+  // Contribution.fieldId references a FIELD category
+  contributions Contribution[] @relation("ContributionField")
+
+  @@index([parentId])
+  @@index([type])
+  @@map("categories")
+}
+
+model Project {
+  id String @id @default(cuid())
+
+  name        String  @db.VarChar(100)
+  description String? @db.VarChar(1000)
+
+  scope          ProjectScope
+  stage          ProjectStage
+  activityStatus ProjectActivityStatus @map("activity_status")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  createdById String @map("created_by")
+
+  investmentGoal String? @map("investment_goal") @db.VarChar(255)
+
+  createdBy User @relation(fields: [createdById], references: [id])
+
+  projectCategories ProjectCategory[]
+  projectAudiences  ProjectAudience[]
+  projectLocations  ProjectLocation[]
+  statusIndicators  ProjectStatusIndicator[]
+  humanRequirements HumanRequirement[]
+
+  participations Participation[]
+
+  @@index([createdById])
+  @@map("projects")
+}
+
+model ProjectCategory {
+  id BigInt @id @default(autoincrement())
+
+  projectId  String
+  categoryId String
+
+  project  Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id])
+
+  @@unique([projectId, categoryId], name: "uk_project_category")
+  @@index([categoryId])
+  @@map("project_categories")
+}
+
+model Location {
+  id       String       @id @default(cuid())
+  name     String       @db.VarChar(150)
+  type     LocationType
+  parentId String?
+
+  parent   Location?  @relation("LocationParent", fields: [parentId], references: [id])
+  children Location[] @relation("LocationParent")
+
+  projectLocations ProjectLocation[]
+
+  @@index([parentId])
+  @@index([type])
+  @@map("locations")
+}
+
+model ProjectLocation {
+  id String @id @default(cuid())
+
+  projectId  String
+  locationId String
+
+  detailLocation String? @map("detail_location") @db.VarChar(500)
+
+  project  Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  location Location @relation(fields: [locationId], references: [id])
+
+  @@unique([projectId, locationId], name: "uk_project_location")
+  @@index([locationId])
+  @@map("project_locations")
+}
+
+model AudienceType {
+  id          String   @id
+  name        String
+  description String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @map("created_at")
+  updatedAt   DateTime @map("updated_at")
+
+  userAudiences    UserAudience[]
+  projectAudiences ProjectAudience[]
+
+  @@map("audience_types")
+}
+
+model ProjectAudience {
+  id String @id @default(cuid())
+
+  projectId      String
+  audienceTypeId String
+
+  project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  audienceType AudienceType @relation(fields: [audienceTypeId], references: [id])
+
+  @@unique([projectId, audienceTypeId], name: "uk_project_audience")
+  @@index([audienceTypeId])
+  @@map("project_audiences")
+}
+
+model HumanRequirement {
+  id String @id @default(cuid())
+
+  title     String
+  projectId String @map("project_id")
+
+  participationPeriodType    ParticipationPeriodType?   @map("participation_period_type")
+  participationDurationValue Int?                       @map("participation_duration_value")
+  participationDurationUnit  ParticipationDurationUnit? @map("participation_duration_unit")
+
+  participationStartDate DateTime? @map("participation_start_date") @db.Date
+  participationEndDate   DateTime? @map("participation_end_date") @db.Date
+
+  participationForm String? @map("participation_form") @db.VarChar(255)
+
+  project  Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  criteria HumanCriterion[]
+
+  @@index([projectId])
+  @@map("human_requirements")
+}
+
+model HumanCriterion {
+  id String @id @default(cuid())
+
+  humanRequirementId String @map("human_requirement_id")
+
+  status HumanCriterionStatus
+  term   String               @db.VarChar(255)
+
+  humanRequirement HumanRequirement @relation(fields: [humanRequirementId], references: [id], onDelete: Cascade)
+
+  @@unique([humanRequirementId, status, term], name: "uk_human_criterion")
+  @@index([humanRequirementId])
+  @@map("human_criteria")
+}
+
+model ProjectStatusIndicator {
+  id String @id @default(cuid())
+
+  projectId String @map("project_id")
+
+  status ProjectStatusIndicatorStatus
+  term   String                       @db.VarChar(255)
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, status, term], name: "uk_project_status_indicator")
+  @@index([projectId])
+  @@map("project_status_indicators")
 }
 
 model UserCategory {
@@ -86,19 +355,6 @@ model UserCategory {
 
   @@unique([userId, categoryId], name: "uk_user_category")
   @@index([categoryId])
-}
-
-model AudienceType {
-  id          String   @id
-  name        String
-  description String?
-  active      Boolean  @default(true)
-  createdAt   DateTime @map("created_at")
-  updatedAt   DateTime @map("updated_at")
-
-  userAudiences UserAudience[]
-
-  @@map("audience_types")
 }
 
 model UserAudience {
@@ -122,6 +378,8 @@ model Contribution {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  field Category @relation("ContributionField", fields: [fieldId], references: [id])
 
   users       UserContribution[]
   assessments Assessment[]
@@ -175,16 +433,6 @@ model Experience {
 
   @@index([userId])
   @@index([contributionId])
-}
-
-enum AssessmentQuestionType {
-  SINGLE_CHOICE
-  MULTIPLE_CHOICE
-}
-
-enum AssessmentResultStatus {
-  PASSED
-  FAILED
 }
 
 model Assessment {
@@ -292,27 +540,6 @@ model AssessmentAnswerOption {
   @@index([optionId])
 }
 
-enum ParticipationIntent {
-  JOIN_PROJECT
-  BECOME_COFOUNDER
-}
-
-enum ParticipationRole {
-  FOUNDER
-  COFOUNDER
-  TEAM_MEMBER
-}
-
-enum ParticipationStatus {
-  REQUESTED
-  ACTIVE
-  REJECTED
-  CANCELLED
-  LEFT
-  REMOVED
-  COMPLETED
-}
-
 model Participation {
   id        String @id @default(cuid())
   userId    String
@@ -326,6 +553,8 @@ model Participation {
   updatedAt DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   contributions ParticipationContribution[]
   feedbacks     CommunityFeedback[]

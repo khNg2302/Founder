@@ -10,6 +10,7 @@ import { AuthModule } from './auth/auth.module';
 import { AdminModule } from './admin/admin.module';
 import { ContributionModule } from './contribution/contribution.module';
 import { ExperienceModule } from './experience/experience.module';
+import { AssessmentModule } from './assessment/assessment.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { ExperienceModule } from './experience/experience.module';
     AdminModule,
     ContributionModule,
     ExperienceModule,
+    AssessmentModule,
   ],
   providers: [
     {

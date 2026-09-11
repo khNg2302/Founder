@@ -10,6 +10,7 @@ import { PrismaService } from 'prisma/prisma.service';
 import { ProjectClient } from 'src/project/project.client';
 
 import { CreateParticipationDto } from './dto/create-participation.dto';
+import { CreateParticipationContributionDto } from './dto/create-participation-contribution.dto';
 
 @Injectable()
 export class ParticipationService {
@@ -275,5 +276,109 @@ export class ParticipationService {
     }
 
     return project;
+  }
+
+  async addContribution(
+    participationId: string,
+    dto: CreateParticipationContributionDto,
+    userId: string,
+  ) {
+    const participation = await this.getParticipationOrThrow(participationId);
+
+    this.ensureParticipant(participation, userId);
+
+    this.ensureStatus(
+      participation.status,
+      'ACTIVE',
+      'Only an active participation can add contributions',
+    );
+
+    const userContribution = await this.prisma.userContribution.findUnique({
+      where: {
+        id: dto.userContributionId,
+      },
+    });
+
+    if (!userContribution) {
+      throw new NotFoundException(
+        `User contribution '${dto.userContributionId}' not found`,
+      );
+    }
+
+    if (userContribution.userId !== participation.userId) {
+      throw new BadRequestException(
+        'This user contribution is not available for this participation',
+      );
+    }
+
+    try {
+      return await this.prisma.participationContribution.create({
+        data: {
+          participationId,
+          userContributionId: dto.userContributionId,
+        },
+      });
+    } catch (error) {
+      if (
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException(
+          'This contribution has already been added to the participation',
+        );
+      }
+
+      throw error;
+    }
+  }
+
+  async findContributions(participationId: string, userId: string) {
+    const participation = await this.getParticipationOrThrow(participationId);
+
+    this.ensureParticipant(participation, userId);
+
+    return this.prisma.participationContribution.findMany({
+      where: {
+        participationId,
+      },
+    });
+  }
+
+  async removeContribution(
+    participationId: string,
+    userContributionId: string,
+    userId: string,
+  ) {
+    const participation = await this.getParticipationOrThrow(participationId);
+
+    this.ensureParticipant(participation, userId);
+
+    this.ensureStatus(
+      participation.status,
+      'ACTIVE',
+      'Only an active participation can remove contributions',
+    );
+
+    const participationContribution =
+      await this.prisma.participationContribution.findFirst({
+        where: {
+          participationId,
+          userContributionId,
+        },
+      });
+
+    if (!participationContribution) {
+      throw new NotFoundException(
+        'This contribution has not been added to the participation',
+      );
+    }
+
+    await this.prisma.participationContribution.delete({
+      where: {
+        id: participationContribution.id,
+      },
+    });
   }
 }

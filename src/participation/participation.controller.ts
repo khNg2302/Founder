@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -19,6 +20,7 @@ import {
   AuthenticatedUser,
   CurrentUser,
 } from 'src/auth/decorators/current-user.decorator';
+import { CreateParticipationContributionDto } from './dto/create-participation-contribution.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller()
@@ -99,5 +101,44 @@ export class ParticipationController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.participationService.remove(id, user.userId, accessToken);
+  }
+
+  @Post('participations/:participationId/contributions')
+  @HttpCode(HttpStatus.CREATED)
+  addContribution(
+    @Param('participationId') participationId: string,
+    @Body() dto: CreateParticipationContributionDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.participationService.addContribution(
+      participationId,
+      dto,
+      user.userId,
+    );
+  }
+
+  @Get('participations/:participationId/contributions')
+  findContributions(
+    @Param('participationId') participationId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.participationService.findContributions(
+      participationId,
+      user.userId,
+    );
+  }
+
+  @Delete('participations/:participationId/contributions/:userContributionId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async removeContribution(
+    @Param('participationId') participationId: string,
+    @Param('userContributionId') userContributionId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    await this.participationService.removeContribution(
+      participationId,
+      userContributionId,
+      user.userId,
+    );
   }
 }

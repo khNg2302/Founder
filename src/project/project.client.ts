@@ -8,7 +8,7 @@ import {
 
 export interface ProjectResponse {
   id: string;
-  ownerId: string;
+  owner: { id: string };
   name: string;
 }
 

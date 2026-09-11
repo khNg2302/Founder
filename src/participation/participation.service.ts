@@ -11,6 +11,8 @@ import { ProjectClient } from 'src/project/project.client';
 
 import { CreateParticipationDto } from './dto/create-participation.dto';
 import { CreateParticipationContributionDto } from './dto/create-participation-contribution.dto';
+import { CreateCommunityFeedbackDto } from './dto/create-community-feedback.dto';
+import { UpdateCommunityFeedbackDto } from './dto/update-community-feedback.dto';
 
 @Injectable()
 export class ParticipationService {
@@ -27,7 +29,7 @@ export class ParticipationService {
   ) {
     const project = await this.projectClient.findById(projectId, accessToken);
 
-    if (project.ownerId === userId) {
+    if (project.owner.id === userId) {
       throw new BadRequestException(
         'Project owner cannot create a participation request',
       );
@@ -99,7 +101,7 @@ export class ParticipationService {
   ) {
     const project = await this.projectClient.findById(projectId, accessToken);
 
-    if (project.ownerId !== userId) {
+    if (project.owner.id !== userId) {
       throw new ForbiddenException(
         'Only the project owner can view project participations',
       );
@@ -269,7 +271,7 @@ export class ParticipationService {
   ) {
     const project = await this.projectClient.findById(projectId, accessToken);
 
-    if (project.ownerId !== userId) {
+    if (project.owner.id !== userId) {
       throw new ForbiddenException(
         'Only the project owner can perform this action',
       );
@@ -378,6 +380,198 @@ export class ParticipationService {
     await this.prisma.participationContribution.delete({
       where: {
         id: participationContribution.id,
+      },
+    });
+  }
+
+  async createFeedback(
+    participationId: string,
+    dto: CreateCommunityFeedbackDto,
+    reviewerId: string,
+  ) {
+    const participation = await this.getParticipationOrThrow(participationId);
+
+    this.ensureFeedbackAllowedStatus(participation.status);
+
+    this.ensureParticipant(participation, reviewerId);
+
+    if (dto.reviewedUserId === reviewerId) {
+      throw new BadRequestException('You cannot give feedback to yourself');
+    }
+
+    const reviewedUser = await this.prisma.user.findUnique({
+      where: {
+        id: dto.reviewedUserId,
+      },
+    });
+
+    if (!reviewedUser) {
+      throw new NotFoundException(`User '${dto.reviewedUserId}' not found`);
+    }
+
+    const participantIds = await this.getParticipationUserIds(participation);
+
+    if (!participantIds.includes(dto.reviewedUserId)) {
+      throw new BadRequestException(
+        'The reviewed user did not participate in this project',
+      );
+    }
+
+    try {
+      return await this.prisma.communityFeedback.create({
+        data: {
+          participationId,
+          reviewerId,
+          reviewedUserId: dto.reviewedUserId,
+          communication: dto.communication,
+          reliability: dto.reliability,
+          collaboration: dto.collaboration,
+          professionalism: dto.professionalism,
+          comment: dto.comment?.trim() || null,
+        },
+      });
+    } catch (error) {
+      if (
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException(
+          'You have already given feedback to this user for this participation',
+        );
+      }
+
+      throw error;
+    }
+  }
+
+  private ensureFeedbackAllowedStatus(status: string) {
+    if (status !== 'LEFT' && status !== 'COMPLETED' && status !== 'REMOVED') {
+      throw new BadRequestException(
+        'Feedback can only be given after the participation has ended',
+      );
+    }
+  }
+
+  private async getParticipationUserIds(participation: { projectId: string }) {
+    const participations = await this.prisma.participation.findMany({
+      where: {
+        projectId: participation.projectId,
+        status: {
+          in: ['ACTIVE', 'LEFT', 'COMPLETED', 'REMOVED'],
+        },
+      },
+      select: {
+        userId: true,
+      },
+    });
+
+    return participations.map((item) => item.userId);
+  }
+
+  async findFeedbacks(participationId: string, userId: string) {
+    const participation = await this.getParticipationOrThrow(participationId);
+
+    this.ensureParticipant(participation, userId);
+
+    return this.prisma.communityFeedback.findMany({
+      where: {
+        participationId,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  }
+
+  async updateFeedback(
+    participationId: string,
+    feedbackId: string,
+    dto: UpdateCommunityFeedbackDto,
+    reviewerId: string,
+  ) {
+    const participation = await this.getParticipationOrThrow(participationId);
+
+    this.ensureFeedbackAllowedStatus(participation.status);
+
+    this.ensureParticipant(participation, reviewerId);
+
+    const feedback = await this.prisma.communityFeedback.findUnique({
+      where: {
+        id: feedbackId,
+      },
+    });
+
+    if (!feedback) {
+      throw new NotFoundException(`Feedback '${feedbackId}' not found`);
+    }
+
+    if (feedback.participationId !== participationId) {
+      throw new NotFoundException(`Feedback '${feedbackId}' not found`);
+    }
+
+    if (feedback.reviewerId !== reviewerId) {
+      throw new ForbiddenException(
+        'Only the feedback reviewer can update this feedback',
+      );
+    }
+
+    return this.prisma.communityFeedback.update({
+      where: {
+        id: feedbackId,
+      },
+      data: {
+        ...(dto.communication !== undefined && {
+          communication: dto.communication,
+        }),
+        ...(dto.reliability !== undefined && {
+          reliability: dto.reliability,
+        }),
+        ...(dto.collaboration !== undefined && {
+          collaboration: dto.collaboration,
+        }),
+        ...(dto.professionalism !== undefined && {
+          professionalism: dto.professionalism,
+        }),
+        ...(dto.comment !== undefined && {
+          comment: dto.comment.trim() || null,
+        }),
+      },
+    });
+  }
+  async deleteFeedback(
+    participationId: string,
+    feedbackId: string,
+    reviewerId: string,
+  ) {
+    const participation = await this.getParticipationOrThrow(participationId);
+
+    this.ensureParticipant(participation, reviewerId);
+
+    const feedback = await this.prisma.communityFeedback.findUnique({
+      where: {
+        id: feedbackId,
+      },
+    });
+
+    if (!feedback) {
+      throw new NotFoundException(`Feedback '${feedbackId}' not found`);
+    }
+
+    if (feedback.participationId !== participationId) {
+      throw new NotFoundException(`Feedback '${feedbackId}' not found`);
+    }
+
+    if (feedback.reviewerId !== reviewerId) {
+      throw new ForbiddenException(
+        'Only the feedback reviewer can delete this feedback',
+      );
+    }
+
+    await this.prisma.communityFeedback.delete({
+      where: {
+        id: feedbackId,
       },
     });
   }

@@ -599,6 +599,7 @@ model CommunityFeedback {
   reviewedUser User @relation("FeedbackReviewedUser", fields: [reviewedUserId], references: [id])
 
   @@unique([participationId, reviewerId, reviewedUserId], name: "uk_participation_feedback")
+  @@index([participationId])
   @@index([reviewerId])
   @@index([reviewedUserId])
 }

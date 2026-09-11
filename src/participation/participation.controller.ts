@@ -21,6 +21,8 @@ import {
   CurrentUser,
 } from 'src/auth/decorators/current-user.decorator';
 import { CreateParticipationContributionDto } from './dto/create-participation-contribution.dto';
+import { CreateCommunityFeedbackDto } from './dto/create-community-feedback.dto';
+import { UpdateCommunityFeedbackDto } from './dto/update-community-feedback.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller()
@@ -138,6 +140,60 @@ export class ParticipationController {
     await this.participationService.removeContribution(
       participationId,
       userContributionId,
+      user.userId,
+    );
+  }
+
+  @Post('participations/:participationId/feedbacks')
+  @HttpCode(HttpStatus.CREATED)
+  createFeedback(
+    @Param('participationId') participationId: string,
+    @Body() dto: CreateCommunityFeedbackDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.participationService.createFeedback(
+      participationId,
+      dto,
+      user.userId,
+    );
+  }
+
+  @Get('participations/:participationId/feedbacks')
+  findFeedbacks(
+    @Param('participationId') participationId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.participationService.findFeedbacks(
+      participationId,
+      user.userId,
+    );
+  }
+
+  @Patch('participations/:participationId/feedbacks/:feedbackId')
+  updateFeedback(
+    @Param('participationId') participationId: string,
+    @Param('feedbackId') feedbackId: string,
+    @Body() dto: UpdateCommunityFeedbackDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.participationService.updateFeedback(
+      participationId,
+      feedbackId,
+      dto,
+      user.userId,
+    );
+  }
+
+  @Delete('participations/:participationId/feedbacks/:feedbackId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async deleteFeedback(
+    @Param('participationId') participationId: string,
+    @Param('feedbackId') feedbackId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    await this.participationService.deleteFeedback(
+      participationId,
+      feedbackId,
       user.userId,
     );
   }

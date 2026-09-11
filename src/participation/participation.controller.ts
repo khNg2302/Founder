@@ -5,6 +5,7 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  Patch,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -61,5 +62,42 @@ export class ParticipationController {
       user.userId,
       accessToken,
     );
+  }
+
+  @Patch('participations/:id/cancel')
+  cancel(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.participationService.cancel(id, user.userId);
+  }
+
+  @Patch('participations/:id/approve')
+  approve(
+    @Param('id') id: string,
+    @CurrentAccessToken() accessToken: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.participationService.approve(id, user.userId, accessToken);
+  }
+
+  @Patch('participations/:id/reject')
+  reject(
+    @Param('id') id: string,
+    @CurrentAccessToken() accessToken: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.participationService.reject(id, user.userId, accessToken);
+  }
+
+  @Patch('participations/:id/leave')
+  leave(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.participationService.leave(id, user.userId);
+  }
+
+  @Patch('participations/:id/remove')
+  remove(
+    @Param('id') id: string,
+    @CurrentAccessToken() accessToken: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.participationService.remove(id, user.userId, accessToken);
   }
 }

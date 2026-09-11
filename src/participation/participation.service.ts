@@ -113,4 +113,167 @@ export class ParticipationService {
       },
     });
   }
+
+  async cancel(id: string, userId: string) {
+    const participation = await this.getParticipationOrThrow(id);
+
+    this.ensureParticipant(participation, userId);
+
+    this.ensureStatus(
+      participation.status,
+      'REQUESTED',
+      'Only a requested participation can be cancelled',
+    );
+
+    return this.prisma.participation.update({
+      where: { id },
+      data: {
+        status: 'CANCELLED',
+      },
+    });
+  }
+
+  async approve(id: string, userId: string, accessToken: string) {
+    const participation = await this.getParticipationOrThrow(id);
+
+    await this.ensureProjectOwner(participation.projectId, userId, accessToken);
+
+    this.ensureStatus(
+      participation.status,
+      'REQUESTED',
+      'Only a requested participation can be approved',
+    );
+
+    const existingActive = await this.prisma.participation.findFirst({
+      where: {
+        id: {
+          not: participation.id,
+        },
+        userId: participation.userId,
+        projectId: participation.projectId,
+        status: 'ACTIVE',
+      },
+    });
+
+    if (existingActive) {
+      throw new ConflictException(
+        'This user already has an active participation in this project',
+      );
+    }
+
+    return this.prisma.participation.update({
+      where: { id },
+      data: {
+        status: 'ACTIVE',
+      },
+    });
+  }
+
+  async reject(id: string, userId: string, accessToken: string) {
+    const participation = await this.getParticipationOrThrow(id);
+
+    await this.ensureProjectOwner(participation.projectId, userId, accessToken);
+
+    this.ensureStatus(
+      participation.status,
+      'REQUESTED',
+      'Only a requested participation can be rejected',
+    );
+
+    return this.prisma.participation.update({
+      where: { id },
+      data: {
+        status: 'REJECTED',
+      },
+    });
+  }
+
+  async leave(id: string, userId: string) {
+    const participation = await this.getParticipationOrThrow(id);
+
+    this.ensureParticipant(participation, userId);
+
+    this.ensureStatus(
+      participation.status,
+      'ACTIVE',
+      'Only an active participation can be left',
+    );
+
+    return this.prisma.participation.update({
+      where: { id },
+      data: {
+        status: 'LEFT',
+      },
+    });
+  }
+
+  async remove(id: string, userId: string, accessToken: string) {
+    const participation = await this.getParticipationOrThrow(id);
+
+    await this.ensureProjectOwner(participation.projectId, userId, accessToken);
+
+    this.ensureStatus(
+      participation.status,
+      'ACTIVE',
+      'Only an active participation can be removed',
+    );
+
+    return this.prisma.participation.update({
+      where: { id },
+      data: {
+        status: 'REMOVED',
+      },
+    });
+  }
+
+  private async getParticipationOrThrow(id: string) {
+    const participation = await this.prisma.participation.findUnique({
+      where: { id },
+    });
+
+    if (!participation) {
+      throw new NotFoundException(`Participation '${id}' not found`);
+    }
+
+    return participation;
+  }
+
+  private ensureParticipant(
+    participation: {
+      userId: string;
+    },
+    userId: string,
+  ) {
+    if (participation.userId !== userId) {
+      throw new ForbiddenException(
+        'Only the participant can perform this action',
+      );
+    }
+  }
+
+  private ensureStatus(
+    currentStatus: string,
+    expectedStatus: string,
+    message: string,
+  ) {
+    if (currentStatus !== expectedStatus) {
+      throw new BadRequestException(message);
+    }
+  }
+
+  private async ensureProjectOwner(
+    projectId: string,
+    userId: string,
+    accessToken: string,
+  ) {
+    const project = await this.projectClient.findById(projectId, accessToken);
+
+    if (project.ownerId !== userId) {
+      throw new ForbiddenException(
+        'Only the project owner can perform this action',
+      );
+    }
+
+    return project;
+  }
 }

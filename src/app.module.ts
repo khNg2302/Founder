@@ -13,6 +13,7 @@ import { ExperienceModule } from './experience/experience.module';
 import { AssessmentModule } from './assessment/assessment.module';
 import { AssessmentQuestionModule } from './assessment-question/assessment-question.module';
 import { ParticipationModule } from './participation/participation.module';
+import { MatchingModule } from './matching/matching.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { ParticipationModule } from './participation/participation.module';
     AssessmentModule,
     AssessmentQuestionModule,
     ParticipationModule,
+    MatchingModule,
   ],
   providers: [
     {

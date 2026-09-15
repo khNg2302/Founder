@@ -15,8 +15,10 @@ import { RequirementMatcher } from './engine/requirement.matcher';
 import { MatchingEngine } from './engine/matching.engine';
 
 import { MatchingService } from './matching.service';
+import { NotificationModule } from 'src/notification/notification.module';
 
 @Module({
+  imports: [NotificationModule],
   providers: [
     ProjectClient,
 

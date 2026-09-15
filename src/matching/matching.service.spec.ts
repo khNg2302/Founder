@@ -6,6 +6,7 @@ import { ContributionCatalogService } from './data/contribution-catalog.service'
 import { MatchingEngine } from './engine/matching.engine';
 
 import { ProjectClient } from '../project/project.client';
+import { NotificationService } from 'src/notification/notification.service';
 
 describe('MatchingService', () => {
   let service: MatchingService;
@@ -25,6 +26,10 @@ describe('MatchingService', () => {
 
   let matchingEngine: {
     match: jest.Mock;
+  };
+
+  let notificationService: {
+    createProjectMatch: jest.Mock;
   };
 
   const userId = 'user-1';
@@ -48,11 +53,16 @@ describe('MatchingService', () => {
       match: jest.fn(),
     };
 
+    notificationService = {
+      createProjectMatch: jest.fn(),
+    };
+
     service = new MatchingService(
       userMatchingDataService as unknown as UserMatchingDataService,
       contributionCatalogService as unknown as ContributionCatalogService,
       projectClient as unknown as ProjectClient,
       matchingEngine as unknown as MatchingEngine,
+      notificationService as unknown as NotificationService,
     );
   });
 
@@ -582,6 +592,135 @@ describe('MatchingService', () => {
       expect(result[0]).not.toHaveProperty('criteria');
 
       expect(result[0]).not.toHaveProperty('term');
+    });
+
+    it('should create project match notifications for matched projects', async () => {
+      userMatchingDataService.getByUserId.mockResolvedValue({
+        userId,
+        categoryIds: [],
+        audienceTypeIds: [],
+        contributions: [],
+        experiences: [],
+      });
+
+      contributionCatalogService.getAll.mockResolvedValue([]);
+
+      projectClient.findAll.mockResolvedValue([
+        {
+          id: 'project-1',
+          name: 'Green Education',
+          description: 'Education project',
+          scope: 'NATIONAL',
+          stage: 'MVP',
+          activityStatus: 'IN_PROGRESS',
+          createdAt: '2026-09-15T10:00:00',
+          investmentGoal: null,
+          categories: [],
+          owner: {
+            id: 'user-2',
+            name: 'User Two',
+          },
+        },
+      ]);
+
+      projectClient.getMatchingData.mockResolvedValue([
+        {
+          id: 'project-1',
+          categories: [],
+          audiences: [],
+          humanRequirements: [],
+        },
+      ]);
+
+      matchingEngine.match.mockReturnValue({
+        score: 85,
+        matchLevel: 'STRONG',
+        categoryScore: null,
+        audienceScore: null,
+        requirementScore: null,
+      });
+
+      notificationService.createProjectMatch.mockResolvedValue({
+        id: 'notification-1',
+        type: 'PROJECT_MATCH',
+        title: 'New project match',
+        message: '"Green Education" may be a good match for you.',
+        projectId: 'project-1',
+        isRead: false,
+        createdAt: new Date(),
+        readAt: null,
+      });
+
+      await service.getMatchedProjects(userId, accessToken);
+
+      expect(notificationService.createProjectMatch).toHaveBeenCalledWith({
+        userId,
+        projectId: 'project-1',
+        projectName: 'Green Education',
+        matchLevel: 'STRONG',
+      });
+    });
+
+    it('should still return matched projects when notification creation fails', async () => {
+      userMatchingDataService.getByUserId.mockResolvedValue({
+        userId,
+        categoryIds: [],
+        audienceTypeIds: [],
+        contributions: [],
+        experiences: [],
+      });
+
+      contributionCatalogService.getAll.mockResolvedValue([]);
+
+      projectClient.findAll.mockResolvedValue([
+        {
+          id: 'project-1',
+          name: 'Green Education',
+          description: null,
+          scope: 'NATIONAL',
+          stage: 'MVP',
+          activityStatus: 'IN_PROGRESS',
+          createdAt: '2026-09-15T10:00:00',
+          investmentGoal: null,
+          categories: [],
+          owner: {
+            id: 'user-2',
+            name: 'User Two',
+          },
+        },
+      ]);
+
+      projectClient.getMatchingData.mockResolvedValue([
+        {
+          id: 'project-1',
+          categories: [],
+          audiences: [],
+          humanRequirements: [],
+        },
+      ]);
+
+      matchingEngine.match.mockReturnValue({
+        score: 85,
+        matchLevel: 'STRONG',
+        categoryScore: null,
+        audienceScore: null,
+        requirementScore: null,
+      });
+
+      notificationService.createProjectMatch.mockRejectedValue(
+        new Error('Notification database error'),
+      );
+
+      const result = await service.getMatchedProjects(userId, accessToken);
+
+      expect(result).toHaveLength(1);
+
+      expect(result[0]).toMatchObject({
+        projectId: 'project-1',
+        name: 'Green Education',
+        matchLevel: 'STRONG',
+        score: 85,
+      });
     });
   });
 });

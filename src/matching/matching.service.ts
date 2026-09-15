@@ -9,6 +9,7 @@ import { UserMatchingDataService } from './data/user-matching-data.service';
 import { MatchingEngine } from './engine/matching.engine';
 
 import { MatchedProjectResponse } from './matching.types';
+import { NotificationService } from 'src/notification/notification.service';
 
 @Injectable()
 export class MatchingService {
@@ -17,6 +18,7 @@ export class MatchingService {
     private readonly contributionCatalogService: ContributionCatalogService,
     private readonly projectClient: ProjectClient,
     private readonly matchingEngine: MatchingEngine,
+    private readonly notificationService: NotificationService,
   ) {}
 
   async getMatchedProjects(
@@ -72,6 +74,20 @@ export class MatchingService {
 
       if (result.score === null || result.matchLevel === null) {
         continue;
+      }
+
+      try {
+        await this.notificationService.createProjectMatch({
+          userId,
+          projectId: project.id,
+          projectName: project.name,
+          matchLevel: result.matchLevel,
+        });
+      } catch (error) {
+        console.error(
+          `Failed to create project match notification for project '${project.id}'`,
+          error,
+        );
       }
 
       results.push({

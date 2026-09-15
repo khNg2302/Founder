@@ -14,6 +14,7 @@ import { AssessmentModule } from './assessment/assessment.module';
 import { AssessmentQuestionModule } from './assessment-question/assessment-question.module';
 import { ParticipationModule } from './participation/participation.module';
 import { MatchingModule } from './matching/matching.module';
+import { NotificationModule } from './notification/notification.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { MatchingModule } from './matching/matching.module';
     AssessmentQuestionModule,
     ParticipationModule,
     MatchingModule,
+    NotificationModule,
   ],
   providers: [
     {

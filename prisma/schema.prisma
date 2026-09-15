@@ -121,6 +121,10 @@ enum AssessmentResultStatus {
   FAILED
 }
 
+enum NotificationType {
+  PROJECT_MATCH
+}
+
 model User {
   id String @id @default(cuid())
 
@@ -165,6 +169,8 @@ model User {
   // Community feedback
   feedbackGiven    CommunityFeedback[] @relation("FeedbackReviewer")
   feedbackReceived CommunityFeedback[] @relation("FeedbackReviewedUser")
+
+  notifications Notification[]
 }
 
 model Category {
@@ -726,4 +732,28 @@ model EmailVerificationToken {
   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
   @@index([accountId])
+}
+
+model Notification {
+  id String @id @default(cuid())
+
+  userId String
+  type NotificationType
+
+  title String
+  message String
+
+  projectId String?
+
+  isRead Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  readAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([userId, isRead])
+  @@unique([userId, type, projectId])
+  @@map("notifications")
 }

@@ -29,6 +29,12 @@ export class ParticipationService {
   ) {
     const project = await this.projectClient.findById(projectId, accessToken);
 
+    if (project.activityStatus !== 'IN_PROGRESS') {
+      throw new BadRequestException(
+        'This project is not accepting participation requests',
+      );
+    }
+
     if (project.owner.id === userId) {
       throw new BadRequestException(
         'Project owner cannot create a participation request',

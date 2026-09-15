@@ -5,6 +5,7 @@ import {
   ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { ProjectActivityStatus } from 'generated/prisma/enums';
 
 export interface ProjectResponse {
   id: string;
@@ -12,6 +13,7 @@ export interface ProjectResponse {
     id: string;
   };
   name: string;
+  activityStatus: ProjectActivityStatus;
 }
 
 export interface ProjectListItem {

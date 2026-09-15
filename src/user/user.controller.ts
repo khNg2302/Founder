@@ -18,11 +18,15 @@ import { UpdateUserAudiencesDto } from './dto/update-user-audiences.dto';
 import { UpdateUserCategoriesDto } from './dto/update-user-categories.dto';
 import { CurrentAccessToken } from 'src/auth/decorators/current-access-token.decorator';
 import { UpdateUserContributionsDto } from './dto/update-user-contributions.dto';
+import { MatchingService } from 'src/matching/matching.service';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard)
 export class UserController {
-  constructor(private readonly userService: UserService) {}
+  constructor(
+    private readonly userService: UserService,
+    private readonly matchingService: MatchingService,
+  ) {}
 
   @Get('me')
   getMe(@CurrentUser() user: AuthenticatedUser) {
@@ -82,5 +86,17 @@ export class UserController {
     @Body() dto: UpdateUserContributionsDto,
   ) {
     return this.userService.replaceContributions(user.userId, dto.items);
+  }
+
+  @Get('me/matched-projects')
+  async getMatchedProjects(
+    @CurrentUser() user: AuthenticatedUser,
+    @Headers('authorization') authorization?: string,
+  ) {
+    const accessToken = authorization?.startsWith('Bearer ')
+      ? authorization.substring(7)
+      : '';
+
+    return this.matchingService.getMatchedProjects(user.userId, accessToken);
   }
 }

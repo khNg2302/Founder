@@ -5,6 +5,7 @@ import { CategoryMatcher } from './engine/category.matcher';
 import { AudienceMatcher } from './engine/audience.matcher';
 import { ContributionCatalogService } from './data/contribution-catalog.service';
 import { RequirementMatcher } from './engine/requirement.matcher';
+import { MatchingEngine } from './engine/matching.engine';
 
 @Module({
   providers: [
@@ -13,6 +14,7 @@ import { RequirementMatcher } from './engine/requirement.matcher';
     CategoryMatcher,
     AudienceMatcher,
     RequirementMatcher,
+    MatchingEngine,
   ],
   exports: [
     UserMatchingDataService,
@@ -20,6 +22,7 @@ import { RequirementMatcher } from './engine/requirement.matcher';
     CategoryMatcher,
     AudienceMatcher,
     RequirementMatcher,
+    MatchingEngine,
   ],
 })
 export class MatchingModule {}

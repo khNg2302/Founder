@@ -1455,5 +1455,32 @@ describe('ParticipationService', () => {
 
       expect(prisma.communityFeedback.delete).not.toHaveBeenCalled();
     });
+
+    it.each(['PAUSED', 'COMPLETED', 'CANCELLED'])(
+      'should reject approval when project activityStatus is %s',
+      async (activityStatus) => {
+        prisma.participation.findUnique.mockResolvedValue({
+          id: 'participation-1',
+          userId: 'user-1',
+          projectId: 'project-1',
+          status: 'REQUESTED',
+        });
+
+        projectClient.findById.mockResolvedValue({
+          id: 'project-1',
+          name: 'Test Project',
+          owner: {
+            id: 'owner-1',
+          },
+          activityStatus,
+        });
+
+        await expect(
+          service.approve('participation-1', 'owner-1', 'access-token'),
+        ).rejects.toThrow(BadRequestException);
+
+        expect(prisma.participation.update).not.toHaveBeenCalled();
+      },
+    );
   });
 });

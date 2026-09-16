@@ -145,22 +145,32 @@ export class ParticipationService {
   async approve(id: string, userId: string, accessToken: string) {
     const participation = await this.getParticipationOrThrow(id);
 
-    await this.ensureProjectOwner(participation.projectId, userId, accessToken);
+    const project = await this.ensureProjectOwner(
+      participation.projectId,
+      userId,
+      accessToken,
+    );
+
+    if (project.activityStatus !== 'IN_PROGRESS') {
+      throw new BadRequestException(
+        'This project is not accepting participation requests',
+      );
+    }
 
     this.ensureStatus(
       participation.status,
       'REQUESTED',
-      'Only a requested participation can be approved',
+      'Only requested participation can be approved',
     );
 
     const existingActive = await this.prisma.participation.findFirst({
       where: {
-        id: {
-          not: participation.id,
-        },
         userId: participation.userId,
         projectId: participation.projectId,
         status: 'ACTIVE',
+        id: {
+          not: participation.id,
+        },
       },
     });
 
@@ -171,7 +181,9 @@ export class ParticipationService {
     }
 
     return this.prisma.participation.update({
-      where: { id },
+      where: {
+        id: participation.id,
+      },
       data: {
         status: 'ACTIVE',
       },

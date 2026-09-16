@@ -13,7 +13,14 @@ import { CreateParticipationDto } from './dto/create-participation.dto';
 import { CreateParticipationContributionDto } from './dto/create-participation-contribution.dto';
 import { CreateCommunityFeedbackDto } from './dto/create-community-feedback.dto';
 import { UpdateCommunityFeedbackDto } from './dto/update-community-feedback.dto';
-import { Prisma } from 'generated/prisma/client';
+import {
+  ParticipationIntent,
+  ParticipationRole,
+  ParticipationStatus,
+  Prisma,
+} from 'generated/prisma/client';
+import { ParticipationResponseDto } from './dto/participation-response.dto';
+import { ProjectParticipationResponseDto } from './dto/project-participation-response.dto';
 
 @Injectable()
 export class ParticipationService {
@@ -62,7 +69,7 @@ export class ParticipationService {
       dto.intent === 'BECOME_COFOUNDER' ? 'COFOUNDER' : 'TEAM_MEMBER';
 
     try {
-      return await this.prisma.participation.create({
+      const participation = await this.prisma.participation.create({
         data: {
           userId,
           projectId,
@@ -71,6 +78,8 @@ export class ParticipationService {
           status: 'REQUESTED',
         },
       });
+
+      return this.toParticipationResponse(participation);
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -100,11 +109,11 @@ export class ParticipationService {
       );
     }
 
-    return participation;
+    return this.toParticipationResponse(participation);
   }
 
   async findMyParticipations(userId: string) {
-    return this.prisma.participation.findMany({
+    const participations = await this.prisma.participation.findMany({
       where: {
         userId,
       },
@@ -112,6 +121,10 @@ export class ParticipationService {
         createdAt: 'desc',
       },
     });
+
+    return participations.map((participation) =>
+      this.toParticipationResponse(participation),
+    );
   }
 
   async findProjectParticipations(
@@ -127,14 +140,27 @@ export class ParticipationService {
       );
     }
 
-    return this.prisma.participation.findMany({
+    const participations = await this.prisma.participation.findMany({
       where: {
         projectId,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            fullName: true,
+            nickname: true,
+          },
+        },
       },
       orderBy: {
         createdAt: 'desc',
       },
     });
+
+    return participations.map((participation) =>
+      this.toProjectParticipationResponse(participation),
+    );
   }
 
   async cancel(id: string, userId: string) {
@@ -148,12 +174,14 @@ export class ParticipationService {
       'Only a requested participation can be cancelled',
     );
 
-    return this.prisma.participation.update({
+    const updated = await this.prisma.participation.update({
       where: { id },
       data: {
         status: 'CANCELLED',
       },
     });
+
+    return this.toParticipationResponse(updated);
   }
 
   async approve(id: string, userId: string, accessToken: string) {
@@ -195,7 +223,7 @@ export class ParticipationService {
     }
 
     try {
-      return await this.prisma.participation.update({
+      const updated = await this.prisma.participation.update({
         where: {
           id: participation.id,
         },
@@ -203,6 +231,8 @@ export class ParticipationService {
           status: 'ACTIVE',
         },
       });
+
+      return this.toParticipationResponse(updated);
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -228,12 +258,14 @@ export class ParticipationService {
       'Only a requested participation can be rejected',
     );
 
-    return this.prisma.participation.update({
+    const updated = await this.prisma.participation.update({
       where: { id },
       data: {
         status: 'REJECTED',
       },
     });
+
+    return this.toParticipationResponse(updated);
   }
 
   async leave(id: string, userId: string) {
@@ -247,12 +279,14 @@ export class ParticipationService {
       'Only an active participation can be left',
     );
 
-    return this.prisma.participation.update({
+    const updated = await this.prisma.participation.update({
       where: { id },
       data: {
         status: 'LEFT',
       },
     });
+
+    return this.toParticipationResponse(updated);
   }
 
   async remove(id: string, userId: string, accessToken: string) {
@@ -266,12 +300,14 @@ export class ParticipationService {
       'Only an active participation can be removed',
     );
 
-    return this.prisma.participation.update({
+    const updated = await this.prisma.participation.update({
       where: { id },
       data: {
         status: 'REMOVED',
       },
     });
+
+    return this.toParticipationResponse(updated);
   }
 
   private async getParticipationOrThrow(id: string) {
@@ -619,5 +655,50 @@ export class ParticipationService {
         id: feedbackId,
       },
     });
+  }
+
+  private toParticipationResponse(participation: {
+    id: string;
+    intent: ParticipationIntent;
+    role: ParticipationRole;
+    status: ParticipationStatus;
+    createdAt: Date;
+    updatedAt: Date;
+  }): ParticipationResponseDto {
+    return {
+      id: participation.id,
+      intent: participation.intent,
+      role: participation.role,
+      status: participation.status,
+      createdAt: participation.createdAt,
+      updatedAt: participation.updatedAt,
+    };
+  }
+
+  private toProjectParticipationResponse(participation: {
+    id: string;
+    intent: ParticipationIntent;
+    role: ParticipationRole;
+    status: ParticipationStatus;
+    createdAt: Date;
+    updatedAt: Date;
+    user: {
+      id: string;
+      fullName: string | null;
+      nickname: string | null;
+    };
+  }): ProjectParticipationResponseDto {
+    return {
+      id: participation.id,
+      user: {
+        id: participation.user.id,
+        name: participation.user.fullName ?? participation.user.nickname,
+      },
+      intent: participation.intent,
+      role: participation.role,
+      status: participation.status,
+      createdAt: participation.createdAt,
+      updatedAt: participation.updatedAt,
+    };
   }
 }

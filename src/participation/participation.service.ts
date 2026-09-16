@@ -21,6 +21,7 @@ import {
 } from 'generated/prisma/client';
 import { ParticipationResponseDto } from './dto/participation-response.dto';
 import { ProjectParticipationResponseDto } from './dto/project-participation-response.dto';
+import { ParticipationContributionResponseDto } from './dto/participation-contribution-response.dto';
 
 @Injectable()
 export class ParticipationService {
@@ -395,12 +396,17 @@ export class ParticipationService {
     }
 
     try {
-      return await this.prisma.participationContribution.create({
-        data: {
-          participationId,
-          userContributionId: dto.userContributionId,
-        },
-      });
+      const participationContribution =
+        await this.prisma.participationContribution.create({
+          data: {
+            participationId,
+            userContributionId: dto.userContributionId,
+          },
+        });
+
+      return this.toParticipationContributionResponse(
+        participationContribution,
+      );
     } catch (error) {
       if (
         typeof error === 'object' &&
@@ -422,11 +428,15 @@ export class ParticipationService {
 
     this.ensureParticipant(participation, userId);
 
-    return this.prisma.participationContribution.findMany({
+    const contributions = await this.prisma.participationContribution.findMany({
       where: {
         participationId,
       },
     });
+
+    return contributions.map((contribution) =>
+      this.toParticipationContributionResponse(contribution),
+    );
   }
 
   async removeContribution(
@@ -463,6 +473,10 @@ export class ParticipationService {
         id: participationContribution.id,
       },
     });
+
+    return {
+      message: 'Contribution removed successfully',
+    };
   }
 
   async createFeedback(
@@ -699,6 +713,18 @@ export class ParticipationService {
       status: participation.status,
       createdAt: participation.createdAt,
       updatedAt: participation.updatedAt,
+    };
+  }
+
+  private toParticipationContributionResponse(contribution: {
+    id: string;
+    participationId: string;
+    userContributionId: string;
+  }): ParticipationContributionResponseDto {
+    return {
+      id: contribution.id,
+      participationId: contribution.participationId,
+      userContributionId: contribution.userContributionId,
     };
   }
 }

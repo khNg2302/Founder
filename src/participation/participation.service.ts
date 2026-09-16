@@ -194,14 +194,27 @@ export class ParticipationService {
       );
     }
 
-    return this.prisma.participation.update({
-      where: {
-        id: participation.id,
-      },
-      data: {
-        status: 'ACTIVE',
-      },
-    });
+    try {
+      return await this.prisma.participation.update({
+        where: {
+          id: participation.id,
+        },
+        data: {
+          status: 'ACTIVE',
+        },
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException(
+          'This user already has an active participation in this project',
+        );
+      }
+
+      throw error;
+    }
   }
 
   async reject(id: string, userId: string, accessToken: string) {

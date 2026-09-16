@@ -1514,5 +1514,36 @@ describe('ParticipationService', () => {
         ),
       ).rejects.toThrow(ConflictException);
     });
+
+    it('should throw ConflictException when approval hits P2002', async () => {
+      prisma.participation.findUnique.mockResolvedValue({
+        id: 'participation-1',
+        userId: 'user-1',
+        projectId: 'project-1',
+        status: 'REQUESTED',
+      });
+
+      projectClient.findById.mockResolvedValue({
+        id: 'project-1',
+        name: 'Test Project',
+        owner: {
+          id: 'owner-1',
+        },
+        activityStatus: 'IN_PROGRESS',
+      });
+
+      prisma.participation.findFirst.mockResolvedValue(null);
+
+      prisma.participation.update.mockRejectedValue(
+        new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+          code: 'P2002',
+          clientVersion: 'test',
+        }),
+      );
+
+      await expect(
+        service.approve('participation-1', 'owner-1', 'access-token'),
+      ).rejects.toThrow(ConflictException);
+    });
   });
 });

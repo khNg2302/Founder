@@ -13,6 +13,7 @@ import { CreateParticipationDto } from './dto/create-participation.dto';
 import { CreateParticipationContributionDto } from './dto/create-participation-contribution.dto';
 import { CreateCommunityFeedbackDto } from './dto/create-community-feedback.dto';
 import { UpdateCommunityFeedbackDto } from './dto/update-community-feedback.dto';
+import { Prisma } from 'generated/prisma/client';
 
 @Injectable()
 export class ParticipationService {
@@ -60,15 +61,28 @@ export class ParticipationService {
     const role =
       dto.intent === 'BECOME_COFOUNDER' ? 'COFOUNDER' : 'TEAM_MEMBER';
 
-    return this.prisma.participation.create({
-      data: {
-        userId,
-        projectId,
-        intent: dto.intent,
-        role,
-        status: 'REQUESTED',
-      },
-    });
+    try {
+      return await this.prisma.participation.create({
+        data: {
+          userId,
+          projectId,
+          intent: dto.intent,
+          role,
+          status: 'REQUESTED',
+        },
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException(
+          'You already have an active participation or pending request for this project',
+        );
+      }
+
+      throw error;
+    }
   }
 
   async findById(id: string, userId: string) {

@@ -8,6 +8,7 @@ import {
 import { ParticipationService } from './participation.service';
 import { PrismaService } from 'prisma/prisma.service';
 import { ProjectClient } from 'src/project/project.client';
+import { Prisma } from 'generated/prisma/client';
 
 describe('ParticipationService', () => {
   let service: ParticipationService;
@@ -1482,5 +1483,36 @@ describe('ParticipationService', () => {
         expect(prisma.participation.update).not.toHaveBeenCalled();
       },
     );
+
+    it('should throw ConflictException when create hits P2002', async () => {
+      projectClient.findById.mockResolvedValue({
+        id: 'project-1',
+        name: 'Test Project',
+        owner: {
+          id: 'owner-1',
+        },
+        activityStatus: 'IN_PROGRESS',
+      });
+
+      prisma.participation.findFirst.mockResolvedValue(null);
+
+      prisma.participation.create.mockRejectedValue(
+        new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+          code: 'P2002',
+          clientVersion: 'test',
+        }),
+      );
+
+      await expect(
+        service.create(
+          'project-1',
+          {
+            intent: 'JOIN_TEAM',
+          },
+          'user-1',
+          'access-token',
+        ),
+      ).rejects.toThrow(ConflictException);
+    });
   });
 });

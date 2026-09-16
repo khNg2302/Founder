@@ -22,6 +22,7 @@ import {
 import { ParticipationResponseDto } from './dto/participation-response.dto';
 import { ProjectParticipationResponseDto } from './dto/project-participation-response.dto';
 import { ParticipationContributionResponseDto } from './dto/participation-contribution-response.dto';
+import { CommunityFeedbackResponseDto } from './dto/community-feedback-response.dto';
 
 @Injectable()
 export class ParticipationService {
@@ -513,7 +514,7 @@ export class ParticipationService {
     }
 
     try {
-      return await this.prisma.communityFeedback.create({
+      const feedback = await this.prisma.communityFeedback.create({
         data: {
           participationId,
           reviewerId,
@@ -525,6 +526,8 @@ export class ParticipationService {
           comment: dto.comment?.trim() || null,
         },
       });
+
+      return this.toCommunityFeedbackResponse(feedback);
     } catch (error) {
       if (
         typeof error === 'object' &&
@@ -570,7 +573,7 @@ export class ParticipationService {
 
     this.ensureParticipant(participation, userId);
 
-    return this.prisma.communityFeedback.findMany({
+    const feedbacks = await this.prisma.communityFeedback.findMany({
       where: {
         participationId,
       },
@@ -578,6 +581,10 @@ export class ParticipationService {
         createdAt: 'desc',
       },
     });
+
+    return feedbacks.map((feedback) =>
+      this.toCommunityFeedbackResponse(feedback),
+    );
   }
 
   async updateFeedback(
@@ -612,7 +619,7 @@ export class ParticipationService {
       );
     }
 
-    return this.prisma.communityFeedback.update({
+    const updatedFeedback = await this.prisma.communityFeedback.update({
       where: {
         id: feedbackId,
       },
@@ -634,6 +641,8 @@ export class ParticipationService {
         }),
       },
     });
+
+    return this.toCommunityFeedbackResponse(updatedFeedback);
   }
   async deleteFeedback(
     participationId: string,
@@ -669,6 +678,10 @@ export class ParticipationService {
         id: feedbackId,
       },
     });
+
+    return {
+      message: 'Feedback deleted successfully',
+    };
   }
 
   private toParticipationResponse(participation: {
@@ -725,6 +738,34 @@ export class ParticipationService {
       id: contribution.id,
       participationId: contribution.participationId,
       userContributionId: contribution.userContributionId,
+    };
+  }
+
+  private toCommunityFeedbackResponse(feedback: {
+    id: string;
+    participationId: string;
+    reviewerId: string;
+    reviewedUserId: string;
+    communication: number;
+    reliability: number;
+    collaboration: number;
+    professionalism: number;
+    comment: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+  }): CommunityFeedbackResponseDto {
+    return {
+      id: feedback.id,
+      participationId: feedback.participationId,
+      reviewerId: feedback.reviewerId,
+      reviewedUserId: feedback.reviewedUserId,
+      communication: feedback.communication,
+      reliability: feedback.reliability,
+      collaboration: feedback.collaboration,
+      professionalism: feedback.professionalism,
+      comment: feedback.comment,
+      createdAt: feedback.createdAt,
+      updatedAt: feedback.updatedAt,
     };
   }
 }
